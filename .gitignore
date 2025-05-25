@@ -1,0 +1,52 @@
+# 依赖目录
+node_modules/
+# 编译输出
+dist/
+build/
+out/
+processed/
+
+# 日志
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs
+
+# 环境变量文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 编辑器
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# pnpm
+.pnpm-store/
+.pnpm-debug.log*
+
+# 锁定文件
+# 一般情况下，建议提交锁定文件，但这里示例如何忽略它们
+# pnpm-lock.yaml
+# package-lock.json
+# yarn.lock
+
+# 测试覆盖率
+coverage/

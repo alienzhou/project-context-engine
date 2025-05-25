@@ -1,0 +1,8 @@
+# 创建 pnpm-workspace.yaml 文件，定义工作区配置
+packages:
+  # 所有 packages 目录下的包
+  - 'packages/*'
+  # 所有 apps 目录下的应用
+  - 'apps/*'
+  # 排除所有 packages 目录下的测试目录
+  - '!**/test/**'

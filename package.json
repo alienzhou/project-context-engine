@@ -1,0 +1,37 @@
+{
+  "name": "project-context-engine",
+  "version": "1.0.0",
+  "description": "A monorepo project using pnpm workspace",
+  "private": true,
+  "scripts": {
+    "build": "pnpm run -r build",
+    "dev": "pnpm run -r dev",
+    "test": "pnpm run -r test",
+    "typecheck": "pnpm run -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "clean": "pnpm exec -r rm -rf dist node_modules",
+    "start": "pnpm run -F @project-context-engine/analyzer start",
+    "build:common": "pnpm run -F @project-context-engine/common build",
+    "build:analyzer": "pnpm run -F @project-context-engine/analyzer build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.11.0",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "prettier": "^3.2.0",
+    "typescript": "^5.4.0",
+    "tsup": "^8.0.0"
+  }
+}
+

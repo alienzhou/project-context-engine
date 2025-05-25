@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2015",
+    "module": "CommonJS",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true,
+    "composite": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "lib": ["ES2021", "DOM", "DOM.Iterable"]
+  },
+  "exclude": ["**/node_modules", "**/dist", "**/build"]
+}
