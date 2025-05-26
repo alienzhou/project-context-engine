@@ -180,6 +180,15 @@ export async function listProject(dirpath: string, maxCount = 50): Promise<{
     "keyQuestions": [
       "What is the core philosophy of Express.js?",
       "Core Architecture of Express.js",
+    ],
+    "children": [
+      {
+        "title": "Guide",
+        "purpose": "This section provides a guide to using the Express.js framework, including installation, configuration, and basic usage.",
+        "keyQuestions": [
+          "How do I install and configure the Express.js framework?",
+        ],
+      }
     ]
   },
   {
@@ -191,6 +200,7 @@ export async function listProject(dirpath: string, maxCount = 50): Promise<{
     "children": [
       {
         "title": "Request",
+        "purpose": "This section explains the Express.js Request object, which represents the incoming HTTP request and provides methods and properties to access and manipulate request data.",
         "keyQuestions": [
           "Which properties and methods does the req object expose to access and manipulate incoming HTTP request data?",
           "What is the Express.js Request Object, and how does it extend Node.js’s native http.IncomingMessage?", 
@@ -198,6 +208,7 @@ export async function listProject(dirpath: string, maxCount = 50): Promise<{
       },
       {
         "title": "Response",
+        "purpose": "This section explains the Express.js Response object, which represents the HTTP response and provides methods and properties to send responses back to the client.",
         "keyQuestions": [
           "Which helper methods and properties does the res object provide for sending content (e.g., HTML, JSON, files), manipulating headers, managing cookies, performing redirects, and rendering views? ",
           "What is the Express.js Response object, and how does it extend Node.js’s native http.ServerResponse? ",
@@ -205,6 +216,7 @@ export async function listProject(dirpath: string, maxCount = 50): Promise<{
       },
       {
         "title": "Router",
+        "purpose": "This section explains the Express.js Router, which is used to define routes and handle HTTP requests.",
         "keyQuestions": [
           "What is the role of the Express Router?",
         ],
@@ -219,7 +231,7 @@ ${treeString}
 </project_structure>
 
 <summary>
-${summaryFiles.map(s => `filepath: ${s.filepath}\n${s.content}`).join('\n\n------------\n\n')}
+${summaryFiles.slice(0, maxCount).map(s => `filepath: ${s.filepath}\n${s.content}`).join('\n\n------------\n\n')}
 </summary>`,
     });
     
