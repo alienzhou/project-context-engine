@@ -50,3 +50,5 @@ Thumbs.db
 
 # 测试覆盖率
 coverage/
+
+apps/render/output

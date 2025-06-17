@@ -1,0 +1,27 @@
+{
+  "name": "@project/render",
+  "version": "1.0.0",
+  "description": "Markdown renderer for the project",
+  "main": "dist/renderer.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "render": "npm run build && node dist/index.js",
+    "render:help": "npm run build && node dist/index.js --help",
+    "render:all": "npm run build && node dist/index.js --all",
+    "render:all:light": "npm run build && node dist/index.js --all --theme light",
+    "render:all:dark": "npm run build && node dist/index.js --all --theme dark",
+    "render:light": "npm run build && node dist/index.js --theme light",
+    "render:dark": "npm run build && node dist/index.js --theme dark"
+  },
+  "dependencies": {
+    "marked": "^9.0.0",
+    "highlight.js": "^11.8.0",
+    "mermaid": "^10.6.0"
+  },
+  "devDependencies": {
+    "@types/marked": "^5.0.1",
+    "@types/node": "^20.8.0",
+    "typescript": "^5.2.2"
+  }
+}
