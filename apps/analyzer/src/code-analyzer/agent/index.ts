@@ -1,7 +1,8 @@
 import { Logger } from '../../utils/log';
 import * as fs from 'node:fs';
 
-// Wiki元数据节点接口
+// Wiki 元数据节点接口，keyQuestions 应聚焦于 SUMMARY 中的实际技术或业务点，
+// 每个页面仅保留 3~5 个以问句形式呈现的问题
 interface WikiMetadataNode {
   title: string;
   purpose: string;
