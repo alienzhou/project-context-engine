@@ -15,21 +15,16 @@ const logger = Logger('wiki-agent');
 
 const AGENT_PROMPT = (titile: string, purpose: string, quetions: string[]) => `详细分析当前代码仓库中的内容，生成一篇《${titile}》的技术分析文章，作为该仓库的wiki文档，要求如下：
 1. 文档的主要目标是: ${purpose}
-2. 语言使用中文，但是涉及关键技术名词、源代码时，用原语言即可
-3. 使用 mermaid 来绘制相关的技术图表
-4. 保持良好的行为结构和逻辑性，除了图表外，给出必要的文字说明
-5. 文档的内容可以用来回答以下问题：
-${quetions.map((q) => `- ${q}`).join('\n')}
+2. 语言使用中文，但遇到关键技术名词或源代码时，可直接使用原语言
+3. 给出整体架构的模块及其交互概览，可使用 mermaid 绘制技术图表
+4. 保持清晰的层次和逻辑，逐步展开说明，并在必要处加入文字解释
+5. 内容应避免模板化或空洞的描述，直接展示关键函数、类或接口的设计目的与实现方式
+6. 逐一回答以下问题，并按序号给出深入解析：
+${quetions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+7. 引用或分析源码时，请标注文件路径和行号，并附上简短说明
 
 关于参考引用的：
-1. 如果最终输出的文档，参考了一些项目中的代码文件或代码片段，需要按如下格式标注出来，示例：
-Behavior varies by input type:
-String: Sent as HTML with Content-Type: text/html[1]
-Buffer/ArrayBuffer view: Sent as binary with Content-Type: application/octet-stream
-Object/Array: Converted to JSON and sent as application/json[2]
-null/undefined: Converted to empty string
-Boolean/Number[2]: Converted to JSON
-
+1. 如果最终输出的文档参考了一些项目中的代码文件或代码片段，需要按如下格式标注：
 <source>
 [1] lib/response.js (L1-L10)
 [2] lib/context.js (L11-L200)
