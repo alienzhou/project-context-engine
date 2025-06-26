@@ -52,3 +52,4 @@ Thumbs.db
 coverage/
 
 apps/render/output
+tsconfig.tsbuildinfo

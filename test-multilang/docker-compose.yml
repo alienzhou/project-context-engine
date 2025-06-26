@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  java-app:
+    build:
+      context: ./java
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - DATABASE_URL=jdbc:postgresql://db:5432/userdb
+    depends_on:
+      - db
+
+  kotlin-app:
+    build:
+      context: ./kotlin  
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      - KTOR_ENV=dev
+      - DATABASE_URL=postgresql://db:5432/userdb
+    depends_on:
+      - db
+
+  go-app:
+    build:
+      context: ./go
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8080"
+    environment:
+      - GIN_MODE=debug
+      - DATABASE_URL=postgres://user:password@db:5432/userdb
+    depends_on:
+      - db
+
+  cpp-app:
+    build:
+      context: ./cpp
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8080"
+    environment:
+      - CPP_ENV=development
+    depends_on:
+      - db
+
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=userdb
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

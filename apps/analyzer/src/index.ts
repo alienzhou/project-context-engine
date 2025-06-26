@@ -10,6 +10,7 @@ import { WIKI_METADATA_FILENAME } from './utils/const';
 import { listProject } from './code-analyzer/structure';
 import { generateAgentPromptsForWiki } from './code-analyzer/agent';
 import { exsit } from './utils/fs';
+import { generateRepoMap } from './code-analyzer/repomap';
 
 const logger = Logger('main', {
   level: LogLevel.DEBUG,
@@ -18,8 +19,8 @@ const logger = Logger('main', {
 
 const PROJECT_BASE = path.resolve(__dirname, '..');
 
-// const REPO = '/Users/zhouhongxuan/program/repos/web-highlighter';
-const REPO = '/Users/zhouhongxuan/program/kuaishou/kinsight/llm-server';
+const REPO = '/Users/zhouhongxuan/program/repos/web-highlighter';
+// const REPO = '/Users/zhouhongxuan/program/kuaishou/kinsight/llm-server';
 const PROCESSED_BASE = path.resolve(PROJECT_BASE, 'processed');
 
 async function main() {
@@ -27,6 +28,7 @@ async function main() {
   const targetDirpath = path.join(PROCESSED_BASE, projectName);
   const wikiFilepath = path.join(targetDirpath, WIKI_METADATA_FILENAME);
   const targetAssetsDirpaht = path.join(targetDirpath, 'assets');
+  const repoMapFilepath = path.join(targetDirpath, 'repomap.md');
 
   // 生成 assets 目录
   process.stdout.write('\n\n');
@@ -79,6 +81,31 @@ async function main() {
   process.stdout.write('\n\n\n');
   logger.info(`[Step 6] 创建页面的生成词`);
   generateAgentPromptsForWiki(wikiFilepath);
+
+  // 新增：生成 Repository Map
+  process.stdout.write('\n\n');
+  logger.info(`[Step 7] 开始生成 Repository Map: ${REPO}`);
+  try {
+    const repoMapResult = await generateRepoMap(REPO, {
+      maxTokens: 2048, // 可以根据需要调整
+      includeTypes: true,
+      includeVariables: false,
+      minImportance: 0.5,
+    });
+    
+    // 保存 repo map
+    await fs.promises.writeFile(repoMapFilepath, repoMapResult.map, 'utf-8');
+    logger.info(`Repository Map 已保存: ${repoMapFilepath}`);
+    logger.info(`统计: ${repoMapResult.files.length} 文件, ${repoMapResult.totalSymbols} 符号, ${repoMapResult.estimatedTokens} tokens`);
+    
+    // 也可以保存详细的 JSON 数据
+    const repoMapJsonPath = path.join(targetDirpath, 'repomap.json');
+    await fs.promises.writeFile(repoMapJsonPath, JSON.stringify(repoMapResult, null, 2), 'utf-8');
+    
+  } catch (error) {
+    logger.error('生成 Repository Map 失败:', error);
+  }
+  process.stdout.write('\n\n\n');
 }
 
 main();

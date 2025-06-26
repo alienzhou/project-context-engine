@@ -11,20 +11,66 @@ const logger = Logger('code-parser');
 
 // 语言到Tree-sitter语法的映射
 const languageMap: Record<string, string> = {
+  // JavaScript/TypeScript 生态
   'js': 'javascript',
+  'mjs': 'javascript',
+  'cjs': 'javascript',
   'ts': 'typescript',
   'jsx': 'javascript',
   'tsx': 'tsx',
+  
+  // Python
   'py': 'python',
+  'pyw': 'python',
+  
+  // Java 生态
   'java': 'java',
-  'cpp': 'cpp',
+  'kt': 'kotlin',
+  'kts': 'kotlin',
+  
+  // C/C++
   'c': 'c',
+  'cpp': 'cpp',
+  'cc': 'cpp',
+  'cxx': 'cpp',
+  'c++': 'cpp',
+  'h': 'cpp',
+  'hpp': 'cpp',
+  'hxx': 'cpp',
+  
+  // 其他编程语言
   'go': 'go',
+  'rs': 'rust',
+  'swift': 'swift',
+  'scala': 'scala',
+  'cs': 'c_sharp',
   'rb': 'ruby',
   'php': 'php',
+  'lua': 'lua',
+  
+  // Shell
+  'sh': 'bash',
+  'bash': 'bash',
+  'zsh': 'bash',
+  
+  // 配置文件（降级处理）
+  'json': 'json',
+  'yaml': 'yaml',
+  'yml': 'yaml',
+  'toml': 'toml',
+  'xml': 'xml',
+  
+  // Web 相关
   'html': 'html',
+  'htm': 'html',
   'css': 'css',
-  'rust': 'rust',
+  'scss': 'css',
+  'sass': 'css',
+  'vue': 'vue',
+  
+  // 新兴语言
+  'zig': 'zig',
+  'dart': 'dart',
 };
 
 // 初始化Tree-sitter的Promise
@@ -57,28 +103,75 @@ async function initParser(): Promise<void> {
 /**
  * 根据文件扩展名获取对应的语言解析器
  */
+// 语言降级映射：如果主要解析器不可用，尝试使用兼容的解析器
+const fallbackMap: Record<string, string[]> = {
+  'typescript': ['javascript'],
+  'tsx': ['javascript'],
+  'kotlin': ['java'],
+  'c_sharp': ['java'],
+  'scala': ['java'],
+  'scss': ['css'],
+  'sass': ['css'],
+  'yaml': ['json'],
+  'toml': ['json'],
+  'zsh': ['bash'],
+  'pyw': ['python'],
+  'mjs': ['javascript'],
+  'cjs': ['javascript'],
+};
+
 async function getLanguageParser(extension: string): Promise<Parser | null> {
   // 确保Parser已初始化
   await initParser();
   
-  const lang = languageMap[extension.toLowerCase().substring(1)];
+  const ext = extension.toLowerCase().substring(1);
+  const lang = languageMap[ext];
+  
   if (!lang) {
     logger.warn(`Unsupported file extension: ${extension}`);
     return null;
   }
 
+  // 如果已经缓存了解析器，直接返回
+  if (parsers[lang]) {
+    return parsers[lang];
+  }
+
+  // 尝试加载主要解析器
+  const parser = await tryLoadParser(lang);
+  if (parser) {
+    return parser;
+  }
+
+  // 尝试降级解析器
+  const fallbacks = fallbackMap[lang] || [];
+  for (const fallbackLang of fallbacks) {
+    logger.info(`Trying fallback parser ${fallbackLang} for ${lang}`);
+    const fallbackParser = await tryLoadParser(fallbackLang);
+    if (fallbackParser) {
+      // 缓存降级解析器
+      parsers[lang] = fallbackParser;
+      return fallbackParser;
+    }
+  }
+
+  logger.error(`No parser available for language: ${lang}`);
+  return null;
+}
+
+async function tryLoadParser(lang: string): Promise<Parser | null> {
   if (parsers[lang]) {
     return parsers[lang];
   }
 
   try {
-    // 创建新的解析器实例
     const parser = new Parser();
     
-    // 使用更灵活的方式定位 WASM 文件
-    // 首先尝试在项目中指定的位置查找，如果不存在则尝试在 node_modules 中查找
+    // 多路径查找策略
     const possiblePaths = [
       path.resolve(__dirname, `../../../node_modules/tree-sitter-wasms/out/tree-sitter-${lang}.wasm`),
+      path.resolve(__dirname, `../../../../node_modules/tree-sitter-wasms/out/tree-sitter-${lang}.wasm`),
+      path.resolve(process.cwd(), `node_modules/tree-sitter-wasms/out/tree-sitter-${lang}.wasm`),
     ];
 
     logger.info('possiblePaths', possiblePaths);
@@ -98,7 +191,7 @@ async function getLanguageParser(extension: string): Promise<Parser | null> {
       logger.info(`Loaded language parser for ${lang} from ${wasmPath}`);
       return parser;
     } else {
-      logger.error(`Language WASM file not found for ${lang}`);
+      logger.warn(`Language WASM file not found for ${lang}`);
       return null;
     }
   } catch (error) {
@@ -108,30 +201,117 @@ async function getLanguageParser(extension: string): Promise<Parser | null> {
 }
 
 /**
+ * 从类内部提取方法和函数
+ */
+function extractMethodsFromClass(classNode: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutFilepath[]): void {
+  // 递归搜索类内部的所有子节点
+  function searchNode(node: Parser.SyntaxNode): void {
+    // 检查当前节点是否为方法或函数
+    const isMethod = [
+      // Java
+      'method_declaration', 'constructor_declaration',
+      // Kotlin
+      'function_declaration', 'property_declaration',
+      // C++
+      'function_definition', 'function_declarator',
+      // JavaScript/TypeScript (类方法)
+      'method_definition',
+      // 其他通用类型
+      'function_declaration'
+    ].includes(node.type);
+    
+    if (isMethod) {
+      processFunction(node, snippets);
+    }
+    
+    // 递归搜索子节点，但不要进入嵌套的类定义
+    for (let i = 0; i < node.childCount; i++) {
+      const child = node.child(i);
+      if (child && child.type !== 'class_declaration' && child.type !== 'class_specifier') {
+        searchNode(child);
+      }
+    }
+  }
+  
+  // 查找类体节点
+  const bodyNode = classNode.childForFieldName('body') || classNode.children.find(c => c.type === 'class_body');
+  
+  if (bodyNode) {
+    // 直接遍历类体中的方法定义
+    for (let i = 0; i < bodyNode.childCount; i++) {
+      const child = bodyNode.child(i);
+      if (!child) continue;
+      
+      if (child.type === 'method_definition') {
+        processFunction(child, snippets);
+      } else {
+        // 递归搜索其他可能包含方法的节点
+        searchNode(child);
+      }
+    }
+  } else {
+    // 如果找不到类体，使用原来的递归搜索
+    searchNode(classNode);
+  }
+}
+
+/**
  * 从语法树中提取函数/方法声明
  */
 function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepath[] {
   const snippets: CodeNodeInfoWithoutFilepath[] = [];
   
-  // 遍历语法树的第一层子节点
-  for (let i = 0; i < root.childCount; i++) {
-    const node = root.child(i);
-    if (!node) continue;
-    
+
+  
+  // 递归处理节点 - 支持预处理器块等嵌套结构
+  function processNode(node: Parser.SyntaxNode): void {
     // 检查节点类型是否为函数/方法定义相关的类型
-    const isFunctionLike =
-      node.type === 'function_declaration' ||
-      node.type === 'method_definition' || 
-      node.type === 'function' || 
-      node.type === 'arrow_function' ||
-      node.type === 'class_declaration' ||
-      node.type === 'method_declaration';
+    const isFunctionLike = [
+      // JavaScript/TypeScript
+      'function_declaration', 'method_definition', 'function', 'arrow_function', 'class_declaration', 'method_declaration',
+      // Java
+      'method_declaration', 'constructor_declaration', 'class_declaration', 'interface_declaration',
+      // Kotlin  
+      'function_declaration', 'class_declaration', 'property_declaration',
+      // Go
+      'function_declaration', 'method_declaration', 'type_declaration', 'struct_type',
+      // C/C++
+      'function_definition', 'function_declarator', 'class_specifier', 'struct_specifier', 'declaration',
+      // Python
+      'function_definition', 'class_definition', 'decorated_definition',
+      // Rust
+      'function_item', 'impl_item', 'struct_item', 'enum_item',
+      // Swift
+      'function_declaration', 'class_declaration', 'struct_declaration',
+      // C#
+      'method_declaration', 'constructor_declaration', 'class_declaration', 'interface_declaration',
+      // Common
+      'interface_declaration', 'type_alias_declaration'
+    ].includes(node.type);
+    
+    // 检查是否为预处理器块或其他容器节点
+    const isContainer = [
+      'preproc_ifdef', 'preproc_if', 'preproc_ifndef', 'namespace_definition', 'linkage_specifier'
+    ].includes(node.type);
     
     // 检查是否为导出声明（可能包含函数定义）
     const isExport = node.type === 'export_statement';
     
     if (isFunctionLike) {
       processFunction(node, snippets);
+      
+      // 如果是类声明，递归搜索类内部的方法
+      if (node.type === 'class_declaration' || node.type === 'class_specifier') {
+        extractMethodsFromClass(node, snippets);
+      }
+    } else if (isContainer) {
+      // 递归处理容器内部的节点
+      for (let j = 0; j < node.childCount; j++) {
+        const child = node.child(j);
+        if (child) {
+          processNode(child);
+        }
+      }
     } else if (isExport) {
       // 处理导出的函数声明
       for (let j = 0; j < node.childCount; j++) {
@@ -148,6 +328,11 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
         
         if (isExportedFunction) {
           processFunction(exportedNode, snippets);
+          
+          // 如果是导出的类，也要提取类方法
+          if (exportedNode.type === 'class_declaration') {
+            extractMethodsFromClass(exportedNode, snippets);
+          }
         }
         
         // 处理导出声明中的默认声明
@@ -166,6 +351,11 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
             
             if (isDefaultFunction) {
               processFunction(defaultNode, snippets);
+              
+              // 如果是默认导出的类，也要提取类方法
+              if (defaultNode.type === 'class_declaration') {
+                extractMethodsFromClass(defaultNode, snippets);
+              }
             }
           }
         }
@@ -186,6 +376,14 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
           }
         }
       }
+    }
+  }
+  
+  // 遍历语法树的所有子节点
+  for (let i = 0; i < root.childCount; i++) {
+    const node = root.child(i);
+    if (node) {
+      processNode(node);
     }
   }
   
