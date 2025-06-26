@@ -18,16 +18,16 @@ const languageMap: Record<string, string> = {
   'ts': 'typescript',
   'jsx': 'javascript',
   'tsx': 'tsx',
-  
+
   // Python
   'py': 'python',
   'pyw': 'python',
-  
+
   // Java 生态
   'java': 'java',
   'kt': 'kotlin',
   'kts': 'kotlin',
-  
+
   // C/C++
   'c': 'c',
   'cpp': 'cpp',
@@ -37,7 +37,7 @@ const languageMap: Record<string, string> = {
   'h': 'cpp',
   'hpp': 'cpp',
   'hxx': 'cpp',
-  
+
   // 其他编程语言
   'go': 'go',
   'rs': 'rust',
@@ -47,19 +47,19 @@ const languageMap: Record<string, string> = {
   'rb': 'ruby',
   'php': 'php',
   'lua': 'lua',
-  
+
   // Shell
   'sh': 'bash',
   'bash': 'bash',
   'zsh': 'bash',
-  
+
   // 配置文件（降级处理）
   'json': 'json',
   'yaml': 'yaml',
   'yml': 'yaml',
   'toml': 'toml',
   'xml': 'xml',
-  
+
   // Web 相关
   'html': 'html',
   'htm': 'html',
@@ -67,7 +67,7 @@ const languageMap: Record<string, string> = {
   'scss': 'css',
   'sass': 'css',
   'vue': 'vue',
-  
+
   // 新兴语言
   'zig': 'zig',
   'dart': 'dart',
@@ -118,15 +118,16 @@ const fallbackMap: Record<string, string[]> = {
   'pyw': ['python'],
   'mjs': ['javascript'],
   'cjs': ['javascript'],
+  'vue': ['javascript'], // Vue 文件降级到 JavaScript 解析器
 };
 
 async function getLanguageParser(extension: string): Promise<Parser | null> {
   // 确保Parser已初始化
   await initParser();
-  
+
   const ext = extension.toLowerCase().substring(1);
   const lang = languageMap[ext];
-  
+
   if (!lang) {
     logger.warn(`Unsupported file extension: ${extension}`);
     return null;
@@ -166,7 +167,7 @@ async function tryLoadParser(lang: string): Promise<Parser | null> {
 
   try {
     const parser = new Parser();
-    
+
     // 多路径查找策略
     const possiblePaths = [
       path.resolve(__dirname, `../../../node_modules/tree-sitter-wasms/out/tree-sitter-${lang}.wasm`),
@@ -175,7 +176,7 @@ async function tryLoadParser(lang: string): Promise<Parser | null> {
     ];
 
     logger.info('possiblePaths', possiblePaths);
-    
+
     let wasmPath = '';
     for (const p of possiblePaths) {
       if (fs.existsSync(p)) {
@@ -183,7 +184,7 @@ async function tryLoadParser(lang: string): Promise<Parser | null> {
         break;
       }
     }
-    
+
     if (wasmPath) {
       const langWasm = await Parser.Language.load(wasmPath);
       parser.setLanguage(langWasm);
@@ -197,6 +198,166 @@ async function tryLoadParser(lang: string): Promise<Parser | null> {
   } catch (error) {
     logger.error(`Error loading language parser for ${lang}`, { error });
     return null;
+  }
+}
+
+/**
+ * 从 Vue 文件中提取 <script> 部分的内容
+ */
+function extractVueScript(vueContent: string): { script: string; lang: string } {
+  // 匹配 <script> 标签，支持 lang 属性
+  const scriptRegex = /<script(?:\s+lang=["'](\w+)["'])?[^>]*>([\s\S]*?)<\/script>/i;
+  const match = vueContent.match(scriptRegex);
+
+  if (!match) {
+    return { script: '', lang: 'javascript' };
+  }
+
+  const lang = match[1] || 'javascript'; // 默认是 JavaScript
+  const script = match[2] || '';
+
+  return { script, lang };
+}
+
+/**
+ * 从 Vue 组件对象中提取方法
+ */
+function extractVueComponentMethods(objectNode: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutFilepath[]): void {
+  for (let i = 0; i < objectNode.childCount; i++) {
+    const child = objectNode.child(i);
+    if (!child) continue;
+
+    // 处理直接的方法定义（如 data(), mounted() 等）
+    if (child.type === 'method_definition') {
+      const nameNode = child.childForFieldName('name');
+      const paramsNode = child.childForFieldName('parameters');
+
+      if (nameNode && paramsNode) {
+        const methodName = nameNode.text;
+        const signature = `${methodName}${paramsNode.text} { }`;
+        const fullText = child.text;
+
+        snippets.push({
+          fullText,
+          signature
+        });
+      }
+      continue;
+    }
+
+    if (child.type !== 'pair') continue;
+
+    // 检查是否是 methods 属性
+    const keyNode = child.childForFieldName('key');
+    const valueNode = child.childForFieldName('value');
+
+    if (keyNode && valueNode &&
+      (keyNode.text === 'methods' || keyNode.text === '"methods"' || keyNode.text === "'methods'")) {
+
+      // 遍历 methods 对象中的所有方法
+      if (valueNode.type === 'object') {
+        for (let j = 0; j < valueNode.childCount; j++) {
+          const methodChild = valueNode.child(j);
+          if (!methodChild) continue;
+
+          // 处理直接的方法定义（Vue methods 中的方法）
+          if (methodChild.type === 'method_definition') {
+            const nameNode = methodChild.childForFieldName('name');
+            const paramsNode = methodChild.childForFieldName('parameters');
+
+            if (nameNode && paramsNode) {
+              const methodName = nameNode.text;
+              const signature = `${methodName}${paramsNode.text} { }`;
+              const fullText = methodChild.text;
+
+              snippets.push({
+                fullText,
+                signature
+              });
+            }
+            continue;
+          }
+
+          // 处理 pair 类型的方法（函数表达式形式）
+          if (methodChild.type === 'pair') {
+            const methodKeyNode = methodChild.childForFieldName('key');
+            const methodValueNode = methodChild.childForFieldName('value');
+
+            if (methodKeyNode && methodValueNode &&
+              (methodValueNode.type === 'function' || methodValueNode.type === 'arrow_function')) {
+
+              // 提取方法名
+              const methodName = methodKeyNode.text.replace(/['"]/g, '');
+
+              // 创建方法签名
+              const paramsNode = methodValueNode.childForFieldName('parameters');
+              const paramsText = paramsNode ? paramsNode.text : '()';
+
+              const signature = `${methodName}${paramsText} { }`;
+              const fullText = methodValueNode.text;
+
+              snippets.push({
+                fullText,
+                signature
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // 检查其他生命周期钩子和计算属性
+    if (keyNode && valueNode) {
+      const key = keyNode.text.replace(/['"]/g, '');
+
+      // Vue 生命周期钩子
+      const lifecycleHooks = [
+        'data', 'computed', 'watch', 'created', 'mounted', 'updated',
+        'destroyed', 'beforeCreate', 'beforeMount', 'beforeUpdate',
+        'beforeDestroy', 'activated', 'deactivated', 'errorCaptured',
+        'setup' // Vue 3 Composition API
+      ];
+
+      if (lifecycleHooks.includes(key)) {
+        if (valueNode.type === 'function' || valueNode.type === 'arrow_function') {
+          const paramsNode = valueNode.childForFieldName('parameters');
+          const paramsText = paramsNode ? paramsNode.text : '()';
+
+          const signature = `${key}${paramsText} { }`;
+          const fullText = valueNode.text;
+
+          snippets.push({
+            fullText,
+            signature
+          });
+        } else if (key === 'computed' && valueNode.type === 'object') {
+          // 处理计算属性
+          for (let j = 0; j < valueNode.childCount; j++) {
+            const computedPair = valueNode.child(j);
+            if (!computedPair || computedPair.type !== 'pair') continue;
+
+            const computedKeyNode = computedPair.childForFieldName('key');
+            const computedValueNode = computedPair.childForFieldName('value');
+
+            if (computedKeyNode && computedValueNode &&
+              (computedValueNode.type === 'function' || computedValueNode.type === 'arrow_function')) {
+
+              const computedName = computedKeyNode.text.replace(/['"]/g, '');
+              const paramsNode = computedValueNode.childForFieldName('parameters');
+              const paramsText = paramsNode ? paramsNode.text : '()';
+
+              const signature = `computed ${computedName}${paramsText} { }`;
+              const fullText = computedValueNode.text;
+
+              snippets.push({
+                fullText,
+                signature
+              });
+            }
+          }
+        }
+      }
+    }
   }
 }
 
@@ -219,11 +380,11 @@ function extractMethodsFromClass(classNode: Parser.SyntaxNode, snippets: CodeNod
       // 其他通用类型
       'function_declaration'
     ].includes(node.type);
-    
+
     if (isMethod) {
       processFunction(node, snippets);
     }
-    
+
     // 递归搜索子节点，但不要进入嵌套的类定义
     for (let i = 0; i < node.childCount; i++) {
       const child = node.child(i);
@@ -232,16 +393,16 @@ function extractMethodsFromClass(classNode: Parser.SyntaxNode, snippets: CodeNod
       }
     }
   }
-  
+
   // 查找类体节点
   const bodyNode = classNode.childForFieldName('body') || classNode.children.find(c => c.type === 'class_body');
-  
+
   if (bodyNode) {
     // 直接遍历类体中的方法定义
     for (let i = 0; i < bodyNode.childCount; i++) {
       const child = bodyNode.child(i);
       if (!child) continue;
-      
+
       if (child.type === 'method_definition') {
         processFunction(child, snippets);
       } else {
@@ -260,9 +421,9 @@ function extractMethodsFromClass(classNode: Parser.SyntaxNode, snippets: CodeNod
  */
 function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepath[] {
   const snippets: CodeNodeInfoWithoutFilepath[] = [];
-  
 
-  
+
+
   // 递归处理节点 - 支持预处理器块等嵌套结构
   function processNode(node: Parser.SyntaxNode): void {
     // 检查节点类型是否为函数/方法定义相关的类型
@@ -288,18 +449,18 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
       // Common
       'interface_declaration', 'type_alias_declaration'
     ].includes(node.type);
-    
+
     // 检查是否为预处理器块或其他容器节点
     const isContainer = [
       'preproc_ifdef', 'preproc_if', 'preproc_ifndef', 'namespace_definition', 'linkage_specifier'
     ].includes(node.type);
-    
+
     // 检查是否为导出声明（可能包含函数定义）
     const isExport = node.type === 'export_statement';
-    
+
     if (isFunctionLike) {
       processFunction(node, snippets);
-      
+
       // 如果是类声明，递归搜索类内部的方法
       if (node.type === 'class_declaration' || node.type === 'class_specifier') {
         extractMethodsFromClass(node, snippets);
@@ -317,45 +478,53 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
       for (let j = 0; j < node.childCount; j++) {
         const exportedNode = node.child(j);
         if (!exportedNode) continue;
-        
-        const isExportedFunction = 
+
+        const isExportedFunction =
           exportedNode.type === 'function_declaration' ||
-          exportedNode.type === 'method_definition' || 
+          exportedNode.type === 'method_definition' ||
           exportedNode.type === 'function' ||
           exportedNode.type === 'arrow_function' ||
           exportedNode.type === 'class_declaration' ||
           exportedNode.type === 'method_declaration';
-        
+
         if (isExportedFunction) {
           processFunction(exportedNode, snippets);
-          
+
           // 如果是导出的类，也要提取类方法
           if (exportedNode.type === 'class_declaration') {
             extractMethodsFromClass(exportedNode, snippets);
           }
         }
-        
+
+        // 直接检查是否是对象字面量（Vue 组件）
+        if (exportedNode.type === 'object') {
+          extractVueComponentMethods(exportedNode, snippets);
+        }
+
         // 处理导出声明中的默认声明
         if (exportedNode.type === 'default') {
           for (let k = 0; k < exportedNode.childCount; k++) {
             const defaultNode = exportedNode.child(k);
             if (!defaultNode) continue;
-            
-            const isDefaultFunction = 
+
+            const isDefaultFunction =
               defaultNode.type === 'function_declaration' ||
-              defaultNode.type === 'method_definition' || 
-              defaultNode.type === 'function' || 
+              defaultNode.type === 'method_definition' ||
+              defaultNode.type === 'function' ||
               defaultNode.type === 'arrow_function' ||
               defaultNode.type === 'class_declaration' ||
               defaultNode.type === 'method_declaration';
-            
+
             if (isDefaultFunction) {
               processFunction(defaultNode, snippets);
-              
+
               // 如果是默认导出的类，也要提取类方法
               if (defaultNode.type === 'class_declaration') {
                 extractMethodsFromClass(defaultNode, snippets);
               }
+            } else if (defaultNode.type === 'object') {
+              // 处理 Vue 组件的 export default {} 语法
+              extractVueComponentMethods(defaultNode, snippets);
             }
           }
         }
@@ -368,9 +537,9 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
           for (let k = 0; k < varNode.childCount; k++) {
             const valueNode = varNode.child(k);
             if (valueNode && (
-                valueNode.type === 'function' || 
-                valueNode.type === 'arrow_function'
-              )) {
+              valueNode.type === 'function' ||
+              valueNode.type === 'arrow_function'
+            )) {
               processFunction(valueNode, snippets, varNode.text.split('=')[0].trim());
             }
           }
@@ -378,7 +547,7 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
       }
     }
   }
-  
+
   // 遍历语法树的所有子节点
   for (let i = 0; i < root.childCount; i++) {
     const node = root.child(i);
@@ -386,7 +555,7 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
       processNode(node);
     }
   }
-  
+
   return snippets;
 }
 
@@ -396,10 +565,10 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
 function processFunction(node: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutFilepath[], nameOverride?: string): void {
   // 获取完整的函数/方法文本
   const fullText = node.text;
-  
+
   // 提取函数/方法签名
   let signature = '';
-  
+
   // 根据不同的节点类型提取签名
   if (node.type === 'function_declaration') {
     // 查找函数体开始的位置
@@ -408,7 +577,7 @@ function processFunction(node: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutF
       // 查找函数名和参数
       const nameNode = node.childForFieldName('name');
       const paramsNode = node.childForFieldName('parameters');
-      
+
       if (nameNode && paramsNode) {
         // 直接构建签名，确保包含函数名和参数
         signature = `function ${nameNode.text}${paramsNode.text} { }`;
@@ -459,7 +628,7 @@ function processFunction(node: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutF
       // 查找函数名（如果有）和参数
       const nameNode = node.childForFieldName('name');
       const paramsNode = node.childForFieldName('parameters');
-      
+
       if (paramsNode) {
         const nameText = nameNode ? nameNode.text : '';
         signature = `function ${nameText}${paramsNode.text} { }`;
@@ -475,11 +644,11 @@ function processFunction(node: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutF
     // 对于类声明，提取类签名和其中的方法签名
     const bodyNode = node.childForFieldName('body');
     const nameNode = node.childForFieldName('name');
-    
+
     if (nameNode && bodyNode) {
       // 首先创建类的基本签名
       let classSignature = `class ${nameNode.text} {`;
-      
+
       // 遍历类体中的所有子节点，查找方法定义
       const methodSignatures: string[] = [];
       for (let i = 0; i < bodyNode.childCount; i++) {
@@ -489,7 +658,7 @@ function processFunction(node: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutF
           // 对于每个方法，提取其签名
           const methodNameNode = child.childForFieldName('name');
           const methodParamsNode = child.childForFieldName('parameters');
-          
+
           if (methodNameNode && methodParamsNode) {
             // 构建方法签名
             methodSignatures.push(`  ${methodNameNode.text}${methodParamsNode.text} { }`);
@@ -502,25 +671,25 @@ function processFunction(node: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutF
           }
         }
       }
-      
+
       // 将所有方法签名合并到类签名中
       if (methodSignatures.length > 0) {
         classSignature += '\n' + methodSignatures.join('\n') + '\n}';
       } else {
         classSignature += ' }';
       }
-      
+
       signature = classSignature;
     } else if (bodyNode) {
       signature = fullText.substring(0, bodyNode.startPosition.column - node.startPosition.column) + ' { }';
     }
   }
-  
+
   // 如果无法提取签名，则使用完整文本
   if (!signature) {
     signature = fullText;
   }
-  
+
   snippets.push({
     fullText,
     signature
@@ -539,24 +708,39 @@ export async function parseCodeFile(filePath: string): Promise<CodeNodeInfo[]> {
       logger.error(`File does not exist: ${filePath}`);
       return [];
     }
-    
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
+
+    let fileContent = fs.readFileSync(filePath, 'utf-8');
     const ext = path.extname(filePath);
-    
-    const parser = await getLanguageParser(ext);
+    let actualExt = ext;
+
+    // 特殊处理 Vue 文件
+    if (ext.toLowerCase() === '.vue') {
+      const { script, lang } = extractVueScript(fileContent);
+      if (script.trim()) {
+        fileContent = script;
+        // 根据 script 标签的 lang 属性确定实际的语言类型
+        actualExt = lang === 'ts' || lang === 'typescript' ? '.ts' : '.js';
+        logger.info(`Extracted ${lang} script from Vue file: ${filePath}`);
+      } else {
+        logger.warn(`No script content found in Vue file: ${filePath}`);
+        return [];
+      }
+    }
+
+    const parser = await getLanguageParser(actualExt);
     if (!parser) {
-      logger.warn(`No parser available for file: ${filePath}`);
+      logger.warn(`No parser available for file: ${filePath} (detected as ${actualExt})`);
       return [];
     }
-    
+
     // 解析代码内容
     const tree = parser.parse(fileContent);
-    
+
     // 提取代码片段
     const snippets = extractCodeSnippets(tree.rootNode);
-    
+
     logger.info(`Parsed file ${filePath}, found ${snippets.length} code snippets`);
-    
+
     return snippets.map(s => ({
       ...s,
       filePath

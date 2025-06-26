@@ -10,7 +10,7 @@
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test-repomap": "tsx test-repomap.js"
+    "test-repomap": "pnpm build && tsx test-repomap.js"
   },
   "keywords": [],
   "author": "",
