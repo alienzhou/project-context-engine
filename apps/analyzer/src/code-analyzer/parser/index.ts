@@ -202,21 +202,28 @@ async function tryLoadParser(lang: string): Promise<Parser | null> {
 }
 
 /**
- * 从 Vue 文件中提取 <script> 部分的内容
+ * 从 Vue 文件中提取 <script> 和 <template> 部分的内容
  */
-function extractVueScript(vueContent: string): { script: string; lang: string } {
+function extractVueContent(vueContent: string): {
+  script: string;
+  lang: string;
+  template: string;
+  hasTemplate: boolean;
+} {
   // 匹配 <script> 标签，支持 lang 属性
   const scriptRegex = /<script(?:\s+lang=["'](\w+)["'])?[^>]*>([\s\S]*?)<\/script>/i;
-  const match = vueContent.match(scriptRegex);
+  const scriptMatch = vueContent.match(scriptRegex);
 
-  if (!match) {
-    return { script: '', lang: 'javascript' };
-  }
+  // 匹配 <template> 标签
+  const templateRegex = /<template[^>]*>([\s\S]*?)<\/template>/i;
+  const templateMatch = vueContent.match(templateRegex);
 
-  const lang = match[1] || 'javascript'; // 默认是 JavaScript
-  const script = match[2] || '';
+  const script = scriptMatch ? scriptMatch[2] || '' : '';
+  const lang = scriptMatch ? scriptMatch[1] || 'javascript' : 'javascript';
+  const template = templateMatch ? templateMatch[1] || '' : '';
+  const hasTemplate = !!templateMatch && template.trim().length > 0;
 
-  return { script, lang };
+  return { script, lang, template, hasTemplate };
 }
 
 /**
@@ -1012,16 +1019,50 @@ export async function parseCodeFile(filePath: string): Promise<CodeNodeInfo[]> {
 
     // 特殊处理 Vue 文件
     if (ext.toLowerCase() === '.vue') {
-      const { script, lang } = extractVueScript(fileContent);
+      const { script, lang, template, hasTemplate } = extractVueContent(fileContent);
+      const snippets: CodeNodeInfo[] = [];
+
+      // 处理 script 部分
       if (script.trim()) {
-        fileContent = script;
         // 根据 script 标签的 lang 属性确定实际的语言类型
-        actualExt = lang === 'ts' || lang === 'typescript' ? '.ts' : '.js';
-        logger.info(`Extracted ${lang} script from Vue file: ${filePath}`);
-      } else {
-        logger.warn(`No script content found in Vue file: ${filePath}`);
-        return [];
+        const scriptExt = lang === 'ts' || lang === 'typescript' ? '.ts' : '.js';
+        const parser = await getLanguageParser(scriptExt);
+
+        if (parser) {
+          const tree = parser.parse(script);
+          const scriptSnippets = extractCodeSnippets(tree.rootNode);
+          snippets.push(...scriptSnippets.map(s => ({ ...s, filePath })));
+          logger.info(`Extracted ${lang} script from Vue file: ${filePath}`);
+        }
       }
+
+      // 添加script和template之间的分隔符
+      if (script.trim() && hasTemplate) {
+        snippets.push({
+          fullText: '--- Template ---',
+          signature: '--- Template ---',
+          filePath
+        });
+      }
+
+      // 处理 template 部分
+      if (hasTemplate) {
+        const htmlParser = await getLanguageParser('.html');
+        if (htmlParser) {
+          // 将template内容包装成完整的HTML文档以便解析
+          const wrappedTemplate = `<div>${template}</div>`;
+          const tree = htmlParser.parse(wrappedTemplate);
+          const templateElements = extractHtmlElements(tree.rootNode);
+          snippets.push(...templateElements.map(e => ({ ...e, filePath })));
+          logger.info(`Extracted template from Vue file: ${filePath}, found ${templateElements.length} elements`);
+        }
+      }
+
+      if (snippets.length === 0) {
+        logger.warn(`No script or template content found in Vue file: ${filePath}`);
+      }
+
+      return snippets;
     }
 
     // 特殊处理 HTML 文件

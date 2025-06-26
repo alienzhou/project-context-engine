@@ -8,7 +8,7 @@ const logger = Logger('repo-map');
 
 export interface RepoMapSymbol {
   name: string;
-  type: 'class' | 'function' | 'interface' | 'method' | 'variable' | 'type' | 'constructor' | 'property' | 'enum' | 'constant' | 'static_method' | 'async_function' | 'getter' | 'setter' | 'html_element';
+  type: 'class' | 'function' | 'interface' | 'method' | 'variable' | 'type' | 'constructor' | 'property' | 'enum' | 'constant' | 'static_method' | 'async_function' | 'getter' | 'setter' | 'html_element' | 'separator';
   signature: string;
   line: number;
   importance: number;
@@ -97,6 +97,7 @@ function calculateImportance(
     'constant': 7,
     'variable': 4,
     'html_element': 8,
+    'separator': 100, // 分隔符给高分确保不被过滤
   };
 
   score += typeScores[symbol.type] || 4;
@@ -215,6 +216,7 @@ function getSymbolIcon(type: RepoMapSymbol['type']): string {
     'constant': '🔒',
     'variable': '📦',
     'html_element': '📦',
+    'separator': '📝',
   };
   return icons[type] || '❓';
 }
@@ -227,8 +229,13 @@ function generateCleanSignature(symbol: RepoMapSymbol): string {
   const icon = getSymbolIcon(symbol.type);
   let cleanSig = '';
 
+  // 对于分隔符：直接使用签名
+  if (symbol.type === 'separator') {
+    cleanSig = signature.trim();
+  }
+
   // 对于 HTML 元素：直接使用签名
-  if (symbol.type === 'html_element') {
+  else if (symbol.type === 'html_element') {
     cleanSig = signature.trim();
   }
 
@@ -450,9 +457,13 @@ function formatRepoMap(files: RepoMapFile[], maxTokens: number): string {
     result += fileHeader;
     currentTokens += fileHeaderTokens;
 
-    // 过滤和去重符号 - 降低过滤阈值，HTML元素特殊处理
+    // 过滤和去重符号 - 降低过滤阈值，HTML元素和分隔符特殊处理
     let symbols = file.symbols
       .filter(s => {
+        // 分隔符总是保留
+        if (s.type === 'separator') {
+          return true;
+        }
         // HTML元素使用更低的阈值
         if (s.type === 'html_element') {
           return s.importance > 0.001;
@@ -482,10 +493,11 @@ function formatRepoMap(files: RepoMapFile[], maxTokens: number): string {
         hasAddedContent = true;
       }
     } else {
-      // 非HTML文件：分组显示：类/接口 -> 函数 -> 其他
+      // 非HTML文件：分组显示：类/接口 -> 函数 -> 分隔符 -> 其他
       const classes = symbols.filter(s => s.type === 'class' || s.type === 'interface');
       const functions = symbols.filter(s => s.type === 'function' && !classes.some(c => c.name === s.name));
-      const others = symbols.filter(s => !classes.includes(s) && !functions.includes(s));
+      const separators = symbols.filter(s => s.type === 'separator');
+      const others = symbols.filter(s => !classes.includes(s) && !functions.includes(s) && !separators.includes(s));
 
       // 先显示类/接口及其方法
       for (const classSymbol of classes) {
@@ -550,6 +562,18 @@ function formatRepoMap(files: RepoMapFile[], maxTokens: number): string {
       // 显示剩余的独立函数
       for (const func of functions.slice(0, 5)) { // 限制显示数量
         const cleanSignature = generateCleanSignature(func);
+        const symbolLine = `⋮...\n│${cleanSignature}\n`;
+        const symbolTokens = Math.ceil(symbolLine.length / 4);
+
+        if (currentTokens + symbolTokens > maxTokens) break;
+        result += symbolLine;
+        currentTokens += symbolTokens;
+        hasAddedContent = true;
+      }
+
+      // 显示分隔符（保持原始顺序）
+      for (const separator of separators) {
+        const cleanSignature = generateCleanSignature(separator);
         const symbolLine = `⋮...\n│${cleanSignature}\n`;
         const symbolTokens = Math.ceil(symbolLine.length / 4);
 
@@ -741,6 +765,9 @@ export async function generateRepoMap(
  */
 function detectSymbolType(signature: string): RepoMapSymbol['type'] {
   const sig = signature.trim().toLowerCase();
+
+  // 分隔符检测
+  if (sig.includes('--- template ---') || sig.includes('---') && sig.includes('template')) return 'separator';
 
   // HTML 元素检测（检查树形符号）
   if ((sig.includes('├─') || sig.includes('html') || sig.includes('body') || sig.includes('head')) &&
