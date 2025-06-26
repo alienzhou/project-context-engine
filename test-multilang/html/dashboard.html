@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理仪表板</title>
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body class="dashboard-layout">
+    <div id="app" class="app-container">
+        <header class="top-bar">
+            <div class="logo-section">
+                <img src="logo.png" alt="Logo" class="logo">
+                <span class="app-title">管理仪表板</span>
+            </div>
+            <div class="user-section">
+                <div class="notifications" id="notifications">
+                    <button class="notification-btn" id="notification-btn">
+                        <span class="badge" id="notification-count">3</span>
+                    </button>
+                </div>
+                <div class="user-profile" id="user-profile">
+                    <img src="avatar.jpg" alt="用户头像" class="avatar">
+                    <span class="username">管理员</span>
+                </div>
+            </div>
+        </header>
+
+        <nav id="sidebar-nav" class="sidebar-navigation">
+            <ul class="nav-list">
+                <li class="nav-item active">
+                    <a href="#dashboard" class="nav-link" id="dashboard-link">
+                        <i class="icon-dashboard"></i>
+                        <span>仪表板</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#users" class="nav-link" id="users-link">
+                        <i class="icon-users"></i>
+                        <span>用户管理</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#analytics" class="nav-link" id="analytics-link">
+                        <i class="icon-chart"></i>
+                        <span>数据分析</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#settings" class="nav-link" id="settings-link">
+                        <i class="icon-settings"></i>
+                        <span>系统设置</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <main id="main-dashboard" class="dashboard-content">
+            <div class="content-header">
+                <h1 id="page-title">仪表板概览</h1>
+                <div class="header-actions">
+                    <button id="refresh-btn" class="btn btn-outline">刷新数据</button>
+                    <button id="export-btn" class="btn btn-primary">导出报告</button>
+                </div>
+            </div>
+
+            <section class="metrics-section">
+                <div class="metrics-grid">
+                    <article class="metric-card" id="users-metric">
+                        <div class="metric-header">
+                            <h3>用户总数</h3>
+                            <i class="icon-users-large"></i>
+                        </div>
+                        <div class="metric-value" id="total-users-value">1,234</div>
+                        <div class="metric-change positive">
+                            <span>+12% 本月</span>
+                        </div>
+                    </article>
+
+                    <article class="metric-card" id="revenue-metric">
+                        <div class="metric-header">
+                            <h3>月度收入</h3>
+                            <i class="icon-money"></i>
+                        </div>
+                        <div class="metric-value" id="revenue-value">¥56,789</div>
+                        <div class="metric-change positive">
+                            <span>+8% 本月</span>
+                        </div>
+                    </article>
+
+                    <article class="metric-card" id="orders-metric">
+                        <div class="metric-header">
+                            <h3>订单数量</h3>
+                            <i class="icon-orders"></i>
+                        </div>
+                        <div class="metric-value" id="orders-value">892</div>
+                        <div class="metric-change negative">
+                            <span>-3% 本月</span>
+                        </div>
+                    </article>
+
+                    <article class="metric-card" id="conversion-metric">
+                        <div class="metric-header">
+                            <h3>转化率</h3>
+                            <i class="icon-conversion"></i>
+                        </div>
+                        <div class="metric-value" id="conversion-value">3.2%</div>
+                        <div class="metric-change positive">
+                            <span>+0.5% 本月</span>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section class="charts-section">
+                <div class="charts-grid">
+                    <div class="chart-container" id="sales-chart-container">
+                        <header class="chart-header">
+                            <h3>销售趋势</h3>
+                            <select id="sales-period" class="chart-filter">
+                                <option value="7d">最近7天</option>
+                                <option value="30d">最近30天</option>
+                                <option value="90d">最近90天</option>
+                            </select>
+                        </header>
+                        <div class="chart-content">
+                            <canvas id="sales-chart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-container" id="user-growth-container">
+                        <header class="chart-header">
+                            <h3>用户增长</h3>
+                            <div class="chart-legend" id="user-growth-legend">
+                                <span class="legend-item">
+                                    <span class="legend-color new-users"></span>
+                                    新用户
+                                </span>
+                                <span class="legend-item">
+                                    <span class="legend-color returning-users"></span>
+                                    回访用户
+                                </span>
+                            </div>
+                        </header>
+                        <div class="chart-content">
+                            <canvas id="user-growth-chart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="data-tables-section">
+                <div class="table-container" id="recent-orders-container">
+                    <header class="table-header">
+                        <h3>最近订单</h3>
+                        <a href="#all-orders" class="view-all-link">查看全部</a>
+                    </header>
+                    <div class="table-wrapper">
+                        <table id="recent-orders-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>订单号</th>
+                                    <th>客户</th>
+                                    <th>金额</th>
+                                    <th>状态</th>
+                                    <th>时间</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-table-body">
+                                <!-- 数据将通过 JavaScript 动态加载 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="table-container" id="top-products-container">
+                    <header class="table-header">
+                        <h3>热门产品</h3>
+                        <select id="products-period" class="table-filter">
+                            <option value="today">今日</option>
+                            <option value="week">本周</option>
+                            <option value="month">本月</option>
+                        </select>
+                    </header>
+                    <div class="table-wrapper">
+                        <table id="top-products-table" class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>产品名称</th>
+                                    <th>销量</th>
+                                    <th>收入</th>
+                                    <th>趋势</th>
+                                </tr>
+                            </thead>
+                            <tbody id="products-table-body">
+                                <!-- 数据将通过 JavaScript 动态加载 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 加载状态 -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <span class="loading-text">加载中...</span>
+        </div>
+    </div>
+
+    <!-- 通知弹窗 -->
+    <div id="notification-popup" class="notification-popup hidden">
+        <div class="notification-content">
+            <button id="close-notification" class="close-btn">&times;</button>
+            <div class="notification-list" id="notification-list">
+                <!-- 通知项将通过 JavaScript 动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/notifications.js"></script>
+</body>
+</html> 

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理系统</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header id="main-header" class="header">
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>用户管理系统</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#home">首页</a></li>
+                <li><a href="#users">用户列表</a></li>
+                <li><a href="#settings">设置</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main id="main-content" class="container">
+        <section id="hero-section" class="hero">
+            <div class="hero-content">
+                <h2>欢迎使用用户管理系统</h2>
+                <p class="hero-description">高效管理您的用户数据</p>
+                <button id="get-started-btn" class="btn btn-primary">开始使用</button>
+            </div>
+        </section>
+
+        <section id="user-list-section" class="user-section">
+            <div class="section-header">
+                <h3>用户列表</h3>
+                <button id="add-user-btn" class="btn btn-secondary">添加用户</button>
+            </div>
+            
+            <div class="filters">
+                <input type="text" id="search-input" placeholder="搜索用户..." class="search-box">
+                <select id="role-filter" class="filter-select">
+                    <option value="">所有角色</option>
+                    <option value="admin">管理员</option>
+                    <option value="user">普通用户</option>
+                </select>
+            </div>
+
+            <div id="user-grid" class="user-grid">
+                <!-- 用户卡片将通过 JavaScript 动态生成 -->
+            </div>
+
+            <div id="pagination" class="pagination">
+                <button id="prev-page" class="page-btn">上一页</button>
+                <span id="page-info" class="page-info">1 / 10</span>
+                <button id="next-page" class="page-btn">下一页</button>
+            </div>
+        </section>
+
+        <section id="stats-section" class="stats">
+            <div class="stats-grid">
+                <div class="stat-card" id="total-users-card">
+                    <h4>总用户数</h4>
+                    <span class="stat-number" id="total-users">0</span>
+                </div>
+                <div class="stat-card" id="active-users-card">
+                    <h4>活跃用户</h4>
+                    <span class="stat-number" id="active-users">0</span>
+                </div>
+                <div class="stat-card" id="admin-users-card">
+                    <h4>管理员</h4>
+                    <span class="stat-number" id="admin-users">0</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <aside id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h4>快速操作</h4>
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="#export" id="export-link">导出数据</a></li>
+            <li><a href="#import" id="import-link">导入数据</a></li>
+            <li><a href="#backup" id="backup-link">备份</a></li>
+        </ul>
+    </aside>
+
+    <footer id="main-footer" class="footer">
+        <div class="footer-content">
+            <p>&copy; 2024 用户管理系统. 保留所有权利.</p>
+            <div class="footer-links">
+                <a href="#privacy">隐私政策</a>
+                <a href="#terms">使用条款</a>
+                <a href="#contact">联系我们</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 模态框 -->
+    <div id="user-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 id="modal-title">添加用户</h5>
+                <button id="close-modal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="user-form" class="user-form">
+                    <div class="form-group">
+                        <label for="user-name">姓名</label>
+                        <input type="text" id="user-name" name="name" required class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="user-email">邮箱</label>
+                        <input type="email" id="user-email" name="email" required class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="user-role">角色</label>
+                        <select id="user-role" name="role" required class="form-select">
+                            <option value="">请选择角色</option>
+                            <option value="admin">管理员</option>
+                            <option value="user">普通用户</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">保存</button>
+                        <button type="button" id="cancel-btn" class="btn btn-secondary">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script src="js/userService.js"></script>
+</body>
+</html> 

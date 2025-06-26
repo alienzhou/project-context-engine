@@ -8,7 +8,7 @@ const logger = Logger('repo-map');
 
 export interface RepoMapSymbol {
   name: string;
-  type: 'class' | 'function' | 'interface' | 'method' | 'variable' | 'type' | 'constructor' | 'property' | 'enum' | 'constant' | 'static_method' | 'async_function' | 'getter' | 'setter';
+  type: 'class' | 'function' | 'interface' | 'method' | 'variable' | 'type' | 'constructor' | 'property' | 'enum' | 'constant' | 'static_method' | 'async_function' | 'getter' | 'setter' | 'html_element';
   signature: string;
   line: number;
   importance: number;
@@ -96,6 +96,7 @@ function calculateImportance(
     'property': 5,
     'constant': 7,
     'variable': 4,
+    'html_element': 8,
   };
 
   score += typeScores[symbol.type] || 4;
@@ -213,6 +214,7 @@ function getSymbolIcon(type: RepoMapSymbol['type']): string {
     'property': '💎',
     'constant': '🔒',
     'variable': '📦',
+    'html_element': '📦',
   };
   return icons[type] || '❓';
 }
@@ -224,6 +226,11 @@ function generateCleanSignature(symbol: RepoMapSymbol): string {
   const signature = symbol.signature;
   const icon = getSymbolIcon(symbol.type);
   let cleanSig = '';
+
+  // 对于 HTML 元素：直接使用签名
+  if (symbol.type === 'html_element') {
+    cleanSig = signature.trim();
+  }
 
   // 对于类：只显示类声明行
   if (symbol.type === 'class') {
@@ -310,6 +317,16 @@ function generateCleanSignature(symbol: RepoMapSymbol): string {
  */
 function extractSymbolName(signature: string): string {
   // 改进的正则匹配，支持更多语言模式
+
+  // HTML 元素：提取标签名称
+  if (signature.includes('├─') || signature.includes('html')) {
+    // 提取标签名（去掉树形符号和属性）
+    const match = signature.match(/(?:├─\s*)?(\w+)(?:\s*\[.*\])?/);
+    if (match) {
+      return match[1];
+    }
+    return 'html';
+  }
 
   // Go: func (receiver) FunctionName 或 func FunctionName
   let match = signature.match(/func\s+(?:\([^)]*\)\s+)?(\w+)/);
@@ -433,102 +450,126 @@ function formatRepoMap(files: RepoMapFile[], maxTokens: number): string {
     result += fileHeader;
     currentTokens += fileHeaderTokens;
 
-    // 过滤和去重符号 - 降低过滤阈值
+    // 过滤和去重符号 - 降低过滤阈值，HTML元素特殊处理
     let symbols = file.symbols
-      .filter(s => s.importance > 0.01)
+      .filter(s => {
+        // HTML元素使用更低的阈值
+        if (s.type === 'html_element') {
+          return s.importance > 0.001;
+        }
+        return s.importance > 0.01;
+      })
       .sort((a, b) => b.importance - a.importance);
 
     symbols = deduplicateSymbols(symbols);
 
-    // 分组显示：类/接口 -> 函数 -> 其他
-    const classes = symbols.filter(s => s.type === 'class' || s.type === 'interface');
-    const functions = symbols.filter(s => s.type === 'function' && !classes.some(c => c.name === s.name));
-    const others = symbols.filter(s => !classes.includes(s) && !functions.includes(s));
+    // 检查是否为HTML文件
+    const isHtmlFile = file.relativePath.toLowerCase().endsWith('.html') || file.relativePath.toLowerCase().endsWith('.htm');
 
     let hasAddedContent = false;
 
-    // 先显示类/接口及其方法
-    for (const classSymbol of classes) {
-      const cleanSignature = generateCleanSignature(classSymbol);
-      const symbolLine = `⋮...\n│${cleanSignature}\n`;
-      const symbolTokens = Math.ceil(symbolLine.length / 4);
+    if (isHtmlFile) {
+      // HTML文件特殊处理：直接显示树形结构
+      const htmlElements = symbols.filter(s => s.type === 'html_element');
 
-      if (currentTokens + symbolTokens > maxTokens) break;
-      result += symbolLine;
-      currentTokens += symbolTokens;
-      hasAddedContent = true;
+      for (const element of htmlElements) {
+        const elementLine = `⋮...\n│${element.signature}\n`;
+        const elementTokens = Math.ceil(elementLine.length / 4);
 
-      // 查找该类的所有方法和构造函数
-      // 优化：通过解析类签名来确定哪些方法属于这个类
-      const classSignature = classSymbol.signature;
-      const classMethodNames = new Set<string>();
+        if (currentTokens + elementTokens > maxTokens) break;
+        result += elementLine;
+        currentTokens += elementTokens;
+        hasAddedContent = true;
+      }
+    } else {
+      // 非HTML文件：分组显示：类/接口 -> 函数 -> 其他
+      const classes = symbols.filter(s => s.type === 'class' || s.type === 'interface');
+      const functions = symbols.filter(s => s.type === 'function' && !classes.some(c => c.name === s.name));
+      const others = symbols.filter(s => !classes.includes(s) && !functions.includes(s));
 
-      // 从类签名中提取方法名
-      if (classSignature.includes('{') && classSignature.includes('}')) {
-        const methodMatches = classSignature.match(/(\w+)\([^)]*\)\s*\{\s*\}/g);
-        if (methodMatches) {
-          methodMatches.forEach(match => {
-            const methodName = match.match(/^(\w+)\(/)?.[1];
-            if (methodName) {
-              classMethodNames.add(methodName);
-            }
-          });
+      // 先显示类/接口及其方法
+      for (const classSymbol of classes) {
+        const cleanSignature = generateCleanSignature(classSymbol);
+        const symbolLine = `⋮...\n│${cleanSignature}\n`;
+        const symbolTokens = Math.ceil(symbolLine.length / 4);
+
+        if (currentTokens + symbolTokens > maxTokens) break;
+        result += symbolLine;
+        currentTokens += symbolTokens;
+        hasAddedContent = true;
+
+        // 查找该类的所有方法和构造函数
+        // 优化：通过解析类签名来确定哪些方法属于这个类
+        const classSignature = classSymbol.signature;
+        const classMethodNames = new Set<string>();
+
+        // 从类签名中提取方法名
+        if (classSignature.includes('{') && classSignature.includes('}')) {
+          const methodMatches = classSignature.match(/(\w+)\([^)]*\)\s*\{\s*\}/g);
+          if (methodMatches) {
+            methodMatches.forEach(match => {
+              const methodName = match.match(/^(\w+)\(/)?.[1];
+              if (methodName) {
+                classMethodNames.add(methodName);
+              }
+            });
+          }
         }
+
+        const classMethods = symbols.filter(s => {
+          // 只包含在类签名中明确定义的方法
+          if (s.type === 'function' && classMethodNames.has(s.name)) {
+            return true;
+          }
+
+          // 对于方法类型，需要更严格的检查
+          if (s.type === 'method') {
+            return classMethodNames.has(s.name);
+          }
+
+          return false;
+        }).slice(0, 8); // 每个类最多显示8个方法
+
+        for (const method of classMethods) {
+          const cleanMethodSignature = generateCleanSignature(method);
+          const methodLine = `    │  ${cleanMethodSignature}\n`;
+          const methodTokens = Math.ceil(methodLine.length / 4);
+
+          if (currentTokens + methodTokens > maxTokens) break;
+          result += methodLine;
+          currentTokens += methodTokens;
+        }
+
+        // 从functions中移除已显示的方法
+        classMethods.forEach(method => {
+          const index = functions.indexOf(method);
+          if (index > -1) functions.splice(index, 1);
+        });
       }
 
-      const classMethods = symbols.filter(s => {
-        // 只包含在类签名中明确定义的方法
-        if (s.type === 'function' && classMethodNames.has(s.name)) {
-          return true;
-        }
+      // 显示剩余的独立函数
+      for (const func of functions.slice(0, 5)) { // 限制显示数量
+        const cleanSignature = generateCleanSignature(func);
+        const symbolLine = `⋮...\n│${cleanSignature}\n`;
+        const symbolTokens = Math.ceil(symbolLine.length / 4);
 
-        // 对于方法类型，需要更严格的检查
-        if (s.type === 'method') {
-          return classMethodNames.has(s.name);
-        }
-
-        return false;
-      }).slice(0, 8); // 每个类最多显示8个方法
-
-      for (const method of classMethods) {
-        const cleanMethodSignature = generateCleanSignature(method);
-        const methodLine = `    │  ${cleanMethodSignature}\n`;
-        const methodTokens = Math.ceil(methodLine.length / 4);
-
-        if (currentTokens + methodTokens > maxTokens) break;
-        result += methodLine;
-        currentTokens += methodTokens;
+        if (currentTokens + symbolTokens > maxTokens) break;
+        result += symbolLine;
+        currentTokens += symbolTokens;
+        hasAddedContent = true;
       }
 
-      // 从functions中移除已显示的方法
-      classMethods.forEach(method => {
-        const index = functions.indexOf(method);
-        if (index > -1) functions.splice(index, 1);
-      });
-    }
+      // 显示其他重要符号
+      for (const other of others.slice(0, 2)) { // 限制其他符号
+        const cleanSignature = generateCleanSignature(other);
+        const symbolLine = `⋮...\n│${cleanSignature}\n`;
+        const symbolTokens = Math.ceil(symbolLine.length / 4);
 
-    // 显示剩余的独立函数
-    for (const func of functions.slice(0, 5)) { // 限制显示数量
-      const cleanSignature = generateCleanSignature(func);
-      const symbolLine = `⋮...\n│${cleanSignature}\n`;
-      const symbolTokens = Math.ceil(symbolLine.length / 4);
-
-      if (currentTokens + symbolTokens > maxTokens) break;
-      result += symbolLine;
-      currentTokens += symbolTokens;
-      hasAddedContent = true;
-    }
-
-    // 显示其他重要符号
-    for (const other of others.slice(0, 2)) { // 限制其他符号
-      const cleanSignature = generateCleanSignature(other);
-      const symbolLine = `⋮...\n│${cleanSignature}\n`;
-      const symbolTokens = Math.ceil(symbolLine.length / 4);
-
-      if (currentTokens + symbolTokens > maxTokens) break;
-      result += symbolLine;
-      currentTokens += symbolTokens;
-      hasAddedContent = true;
+        if (currentTokens + symbolTokens > maxTokens) break;
+        result += symbolLine;
+        currentTokens += symbolTokens;
+        hasAddedContent = true;
+      }
     }
 
     if (hasAddedContent) {
@@ -591,7 +632,7 @@ async function scanDirectory(dirPath: string, options: RepoMapOptions): Promise<
             // Configuration files
             '.json', '.yaml', '.yml', '.toml',
             // Web
-            '.vue'
+            '.html', '.htm', '.vue'
           ];
 
           if (supportedExtensions.includes(ext)) {
@@ -700,6 +741,10 @@ export async function generateRepoMap(
  */
 function detectSymbolType(signature: string): RepoMapSymbol['type'] {
   const sig = signature.trim().toLowerCase();
+
+  // HTML 元素检测（检查树形符号）
+  if ((sig.includes('├─') || sig.includes('html') || sig.includes('body') || sig.includes('head')) &&
+    !sig.includes('(') && !sig.includes('class ') && !sig.includes('function ')) return 'html_element';
 
   // 类相关
   if (sig.includes('class ')) return 'class';

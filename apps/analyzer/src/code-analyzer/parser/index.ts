@@ -220,6 +220,303 @@ function extractVueScript(vueContent: string): { script: string; lang: string } 
 }
 
 /**
+ * HTML 元素信息
+ */
+interface HtmlElement {
+  tagName: string;
+  hasId: boolean;
+  hasClass: boolean;
+  children: HtmlElement[];
+  depth: number;
+}
+
+/**
+ * 从 HTML 文件中提取重要的标签结构
+ */
+function extractHtmlElements(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepath[] {
+  const elements: CodeNodeInfoWithoutFilepath[] = [];
+
+  // 重要的语义化标签
+  const importantTags = new Set([
+    'html', 'head', 'body', 'header', 'nav', 'main', 'section', 'article',
+    'aside', 'footer', 'div', 'form', 'table', 'ul', 'ol', 'li'
+  ]);
+
+  // 构建HTML层级结构
+  function buildHtmlStructure(node: Parser.SyntaxNode, depth: number = 0): HtmlElement | null {
+    if (node.type !== 'element') {
+      return null;
+    }
+
+    // 获取标签名
+    const startTag = node.child(0);
+    if (!startTag || startTag.type !== 'start_tag') {
+      return null;
+    }
+
+    const tagNameNode = startTag.child(1);
+    if (!tagNameNode || tagNameNode.type !== 'tag_name') {
+      return null;
+    }
+
+    const tagName = tagNameNode.text.toLowerCase();
+
+    // 检查是否有 id 或 class 属性
+    const hasId = hasAttribute(startTag, 'id');
+    const hasClass = hasAttribute(startTag, 'class');
+
+    // 只包含重要标签或有重要属性的元素
+    const shouldInclude = importantTags.has(tagName) || hasId || hasClass;
+
+    if (!shouldInclude) {
+      return null;
+    }
+
+    const element: HtmlElement = {
+      tagName,
+      hasId,
+      hasClass,
+      children: [],
+      depth
+    };
+
+    // 递归处理子元素
+    for (let i = 0; i < node.childCount; i++) {
+      const child = node.child(i);
+      if (child && child.type === 'element') {
+        const childElement = buildHtmlStructure(child, depth + 1);
+        if (childElement) {
+          element.children.push(childElement);
+        }
+      }
+    }
+
+    return element;
+  }
+
+  // 将HTML结构转换为签名字符串，采用智能过滤策略
+  function convertToSignatures(element: HtmlElement, depth: number = 0): void {
+    // 构建树形缩进，使用空格和符号来表示层级
+    const indent = '  '.repeat(depth); // 每层缩进2个空格
+    const treeSymbol = depth === 0 ? '' : '├─ '; // 树形连接符
+    const signature = `${indent}${treeSymbol}${element.tagName}`;
+
+    // 添加属性信息（如果有id或class）
+    let attributeInfo = '';
+    if (element.hasId || element.hasClass) {
+      const attrs = [];
+      if (element.hasId) attrs.push('id');
+      if (element.hasClass) attrs.push('class');
+      attributeInfo = ` [${attrs.join(', ')}]`;
+    }
+
+    const fullSignature = signature + attributeInfo;
+
+    // 简化的HTML过滤逻辑：显示更多层级，专注于树形结构
+    const shouldInclude = shouldIncludeHtmlElement(element, depth);
+
+    if (shouldInclude) {
+      elements.push({
+        fullText: fullSignature,
+        signature: fullSignature
+      });
+    }
+
+    // 递归处理子元素，增加缩进层级
+    for (const child of element.children) {
+      convertToSignatures(child, depth + 1);
+    }
+  }
+
+  // 专门为HTML设计的过滤函数 - 更宽松的策略以显示树形结构
+  function shouldIncludeHtmlElement(element: HtmlElement, depth: number): boolean {
+    const tagName = element.tagName;
+
+    // 限制最大深度为6层，避免过深嵌套
+    if (depth > 6) {
+      return false;
+    }
+
+    // 1. 总是包含顶级结构标签
+    if (['html', 'head', 'body'].includes(tagName)) {
+      return true;
+    }
+
+    // 2. 包含重要的语义化标签（不管层级）
+    const semanticTags = ['header', 'nav', 'main', 'section', 'article', 'aside', 'footer'];
+    if (semanticTags.includes(tagName)) {
+      return true;
+    }
+
+    // 3. 包含有 id 的元素（这些通常是重要的）
+    if (element.hasId) {
+      return true;
+    }
+
+    // 4. 包含有 class 的元素（这些通常是重要的）
+    if (element.hasClass) {
+      return true;
+    }
+
+    // 5. 表单相关元素
+    if (['form', 'table', 'ul', 'ol', 'li'].includes(tagName)) {
+      return true;
+    }
+
+    // 6. 常见的重要标签
+    const commonTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'button', 'input', 'select'];
+    if (commonTags.includes(tagName)) {
+      return true;
+    }
+
+    // 7. div 元素在浅层显示
+    if (tagName === 'div' && depth <= 4) {
+      return true;
+    }
+
+    // 8. 默认不包含
+    return false;
+  }
+
+  // 判断是否应该包含这个元素
+  function shouldIncludeElement(element: HtmlElement, path: string[]): boolean {
+    const depth = path.length;
+    const tagName = element.tagName;
+
+    // 限制最大深度为10层，避免过深嵌套
+    if (depth > 10) {
+      return false;
+    }
+
+    // 1. 总是包含顶级结构标签
+    if (['html', 'head', 'body'].includes(tagName)) {
+      return true;
+    }
+
+    // 2. 包含重要的语义化标签（不管层级）
+    const semanticTags = ['header', 'nav', 'main', 'section', 'article', 'aside', 'footer'];
+    if (semanticTags.includes(tagName)) {
+      return true;
+    }
+
+    // 3. 包含有 id 的元素（这些通常是重要的）
+    if (element.hasId) {
+      return true;
+    }
+
+    // 4. 对于 div，放宽限制
+    if (tagName === 'div') {
+      // 有 class 或 id 的 div 在深度8层内
+      if (element.hasClass || element.hasId) {
+        return depth <= 8;
+      }
+      // 普通 div 在深度5层内
+      return depth <= 5;
+    }
+
+    // 5. 表单相关元素，放宽限制
+    if (['form', 'table', 'ul', 'ol', 'li'].includes(tagName)) {
+      return depth <= 8;
+    }
+
+    // 6. 其他有 class 的元素在深度7层内
+    if (element.hasClass) {
+      return depth <= 7;
+    }
+
+    // 7. 常见的重要标签
+    const commonTags = ['a', 'button', 'input', 'select', 'textarea', 'img', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+    if (commonTags.includes(tagName)) {
+      return depth <= 6;
+    }
+
+    // 8. 默认不包含
+    return false;
+  }
+
+  // 只处理顶级文档元素，避免重复
+  function processTopLevelElements(node: Parser.SyntaxNode): void {
+    // 直接查找 html 元素作为根节点
+    for (let i = 0; i < node.childCount; i++) {
+      const child = node.child(i);
+      if (child && child.type === 'element') {
+        const element = buildHtmlStructure(child);
+        if (element) {
+          convertToSignatures(element);
+          return; // 只处理第一个顶级元素（通常是 html）
+        }
+      }
+    }
+  }
+
+  processTopLevelElements(root);
+  return elements;
+}
+
+/**
+ * 检查标签是否有指定属性
+ */
+function hasAttribute(startTag: Parser.SyntaxNode, attributeName: string): boolean {
+  for (let i = 0; i < startTag.childCount; i++) {
+    const child = startTag.child(i);
+    if (child && child.type === 'attribute') {
+      // HTML 属性的结构通常是: attribute_name="attribute_value"
+      const nameNode = child.child(0); // 第一个子节点是属性名
+      if (nameNode && nameNode.type === 'attribute_name') {
+        const attrName = nameNode.text.toLowerCase();
+        if (attrName === attributeName.toLowerCase()) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * 检查标签是否有重要属性（id 或 class）
+ */
+function hasImportantAttributes(startTag: Parser.SyntaxNode): boolean {
+  return hasAttribute(startTag, 'id') || hasAttribute(startTag, 'class');
+}
+
+/**
+ * 提取标签的属性
+ */
+function extractAttributes(startTag: Parser.SyntaxNode): { id?: string; class?: string;[key: string]: string | undefined } {
+  const attributes: { id?: string; class?: string;[key: string]: string | undefined } = {};
+
+  for (let i = 0; i < startTag.childCount; i++) {
+    const child = startTag.child(i);
+    if (child && child.type === 'attribute') {
+      // HTML 属性结构: attribute_name="attribute_value" 或 attribute_name='attribute_value'
+      const nameNode = child.child(0); // 属性名
+      const valueNode = child.child(2); // 属性值（跳过 = 符号）
+
+      if (nameNode && nameNode.type === 'attribute_name' && valueNode && valueNode.type === 'quoted_attribute_value') {
+        const attrName = nameNode.text.toLowerCase();
+
+        // 在 quoted_attribute_value 中查找实际的属性值
+        const actualValueNode = valueNode.child(1); // 中间的子节点是 attribute_value
+        let attrValue = actualValueNode ? actualValueNode.text : valueNode.text;
+
+        // 如果没有找到子节点，则移除引号
+        if (!actualValueNode) {
+          if ((attrValue.startsWith('"') && attrValue.endsWith('"')) ||
+            (attrValue.startsWith("'") && attrValue.endsWith("'"))) {
+            attrValue = attrValue.slice(1, -1);
+          }
+        }
+
+        attributes[attrName] = attrValue;
+      }
+    }
+  }
+
+  return attributes;
+}
+
+/**
  * 从 Vue 组件对象中提取方法
  */
 function extractVueComponentMethods(objectNode: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutFilepath[]): void {
@@ -725,6 +1022,30 @@ export async function parseCodeFile(filePath: string): Promise<CodeNodeInfo[]> {
         logger.warn(`No script content found in Vue file: ${filePath}`);
         return [];
       }
+    }
+
+    // 特殊处理 HTML 文件
+    if (ext.toLowerCase() === '.html' || ext.toLowerCase() === '.htm') {
+      const parser = await getLanguageParser(actualExt);
+      if (!parser) {
+        logger.warn(`No HTML parser available for file: ${filePath}`);
+        return [];
+      }
+
+      // 解析 HTML 内容
+      const tree = parser.parse(fileContent);
+
+      // 提取 HTML 元素结构
+      const elements = extractHtmlElements(tree.rootNode);
+
+
+
+      logger.info(`Parsed HTML file ${filePath}, found ${elements.length} important elements`);
+
+      return elements.map(e => ({
+        ...e,
+        filePath
+      }));
     }
 
     const parser = await getLanguageParser(actualExt);
