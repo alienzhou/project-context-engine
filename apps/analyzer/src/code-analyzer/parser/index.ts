@@ -249,8 +249,8 @@ function extractHtmlElements(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
     'aside', 'footer', 'div', 'form', 'table', 'ul', 'ol', 'li'
   ]);
 
-  // 构建HTML层级结构
-  function buildHtmlStructure(node: Parser.SyntaxNode, depth: number = 0): HtmlElement | null {
+  // 构建HTML层级结构，并记录节点信息
+  function buildHtmlStructure(node: Parser.SyntaxNode, depth: number = 0): { element: HtmlElement; node: Parser.SyntaxNode } | null {
     if (node.type !== 'element') {
       return null;
     }
@@ -291,18 +291,18 @@ function extractHtmlElements(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
     for (let i = 0; i < node.childCount; i++) {
       const child = node.child(i);
       if (child && child.type === 'element') {
-        const childElement = buildHtmlStructure(child, depth + 1);
-        if (childElement) {
-          element.children.push(childElement);
+        const childResult = buildHtmlStructure(child, depth + 1);
+        if (childResult) {
+          element.children.push(childResult.element);
         }
       }
     }
 
-    return element;
+    return { element, node };
   }
 
   // 将HTML结构转换为签名字符串，采用智能过滤策略
-  function convertToSignatures(element: HtmlElement, depth: number = 0): void {
+  function convertToSignatures(element: HtmlElement, depth: number = 0, parentNode?: Parser.SyntaxNode): void {
     // 构建树形缩进，使用空格和符号来表示层级
     const indent = '  '.repeat(depth); // 每层缩进2个空格
     const treeSymbol = depth === 0 ? '' : '├─ '; // 树形连接符
@@ -323,15 +323,23 @@ function extractHtmlElements(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
     const shouldInclude = shouldIncludeHtmlElement(element, depth);
 
     if (shouldInclude) {
-      elements.push({
+      const elementInfo: CodeNodeInfoWithoutFilepath = {
         fullText: fullSignature,
         signature: fullSignature
-      });
+      };
+
+      // 如果有父节点，尝试获取行号信息
+      if (parentNode) {
+        elementInfo.startLine = parentNode.startPosition.row + 1;
+        elementInfo.endLine = parentNode.endPosition.row + 1;
+      }
+
+      elements.push(elementInfo);
     }
 
     // 递归处理子元素，增加缩进层级
     for (const child of element.children) {
-      convertToSignatures(child, depth + 1);
+      convertToSignatures(child, depth + 1, parentNode);
     }
   }
 
@@ -447,9 +455,9 @@ function extractHtmlElements(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
     for (let i = 0; i < node.childCount; i++) {
       const child = node.child(i);
       if (child && child.type === 'element') {
-        const element = buildHtmlStructure(child);
-        if (element) {
-          convertToSignatures(element);
+        const result = buildHtmlStructure(child);
+        if (result) {
+          convertToSignatures(result.element, 0, result.node);
           return; // 只处理第一个顶级元素（通常是 html）
         }
       }
@@ -543,7 +551,9 @@ function extractVueComponentMethods(objectNode: Parser.SyntaxNode, snippets: Cod
 
         snippets.push({
           fullText,
-          signature
+          signature,
+          startLine: child.startPosition.row + 1,
+          endLine: child.endPosition.row + 1
         });
       }
       continue;
@@ -576,7 +586,9 @@ function extractVueComponentMethods(objectNode: Parser.SyntaxNode, snippets: Cod
 
               snippets.push({
                 fullText,
-                signature
+                signature,
+                startLine: methodChild.startPosition.row + 1,
+                endLine: methodChild.endPosition.row + 1
               });
             }
             continue;
@@ -602,7 +614,9 @@ function extractVueComponentMethods(objectNode: Parser.SyntaxNode, snippets: Cod
 
               snippets.push({
                 fullText,
-                signature
+                signature,
+                startLine: methodValueNode.startPosition.row + 1,
+                endLine: methodValueNode.endPosition.row + 1
               });
             }
           }
@@ -632,7 +646,9 @@ function extractVueComponentMethods(objectNode: Parser.SyntaxNode, snippets: Cod
 
           snippets.push({
             fullText,
-            signature
+            signature,
+            startLine: valueNode.startPosition.row + 1,
+            endLine: valueNode.endPosition.row + 1
           });
         } else if (key === 'computed' && valueNode.type === 'object') {
           // 处理计算属性
@@ -655,7 +671,9 @@ function extractVueComponentMethods(objectNode: Parser.SyntaxNode, snippets: Cod
 
               snippets.push({
                 fullText,
-                signature
+                signature,
+                startLine: computedValueNode.startPosition.row + 1,
+                endLine: computedValueNode.endPosition.row + 1
               });
             }
           }
@@ -996,7 +1014,9 @@ function processFunction(node: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutF
 
   snippets.push({
     fullText,
-    signature
+    signature,
+    startLine: node.startPosition.row + 1, // Tree-sitter uses 0-based row numbers
+    endLine: node.endPosition.row + 1
   });
 }
 
@@ -1041,7 +1061,9 @@ export async function parseCodeFile(filePath: string): Promise<CodeNodeInfo[]> {
         snippets.push({
           fullText: '--- Template ---',
           signature: '--- Template ---',
-          filePath
+          filePath,
+          startLine: 1,
+          endLine: 1
         });
       }
 

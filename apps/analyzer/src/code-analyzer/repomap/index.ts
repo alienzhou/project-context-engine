@@ -11,6 +11,7 @@ export interface RepoMapSymbol {
   type: 'class' | 'function' | 'interface' | 'method' | 'variable' | 'type' | 'constructor' | 'property' | 'enum' | 'constant' | 'static_method' | 'async_function' | 'getter' | 'setter' | 'html_element' | 'separator';
   signature: string;
   line: number;
+  endLine?: number; // 结束行号
   importance: number;
   modifiers?: string[]; // 如: ['static', 'async', 'private', 'readonly']
   returnType?: string;
@@ -316,7 +317,17 @@ function generateCleanSignature(symbol: RepoMapSymbol): string {
     }
   }
 
-  return `${icon} ${cleanSig}${modifierStr}`;
+  // 添加行号范围信息
+  let lineRangeStr = '';
+  if (symbol.line > 0) {
+    if (symbol.endLine && symbol.endLine !== symbol.line) {
+      lineRangeStr = ` [L${symbol.line}-${symbol.endLine}]`;
+    } else {
+      lineRangeStr = ` [L${symbol.line}]`;
+    }
+  }
+
+  return `${icon} ${cleanSig}${modifierStr}${lineRangeStr}`;
 }
 
 /**
@@ -713,7 +724,8 @@ export async function generateRepoMap(
           name: extractSymbolName(node.signature),
           type: detectSymbolType(node.signature),
           signature: node.signature,
-          line: 1, // 暂时设为1，实际可以从AST中获取
+          line: node.startLine || 1,
+          endLine: node.endLine,
           importance: 0, // 稍后计算
           modifiers: details.modifiers,
           returnType: details.returnType,
