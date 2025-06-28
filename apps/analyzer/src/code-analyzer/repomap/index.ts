@@ -31,6 +31,7 @@ export interface RepoMapOptions {
   includeTypes?: boolean;
   includeVariables?: boolean;
   minImportance?: number;
+  language?: string;
   rootPath: string;
 }
 
@@ -617,6 +618,51 @@ function formatRepoMap(files: RepoMapFile[], maxTokens: number): string {
 }
 
 /**
+ * 获取语言对应的文件扩展名
+ */
+function getLanguageExtensions(language: string): string[] {
+  const languageExtensionMap: Record<string, string[]> = {
+    'javascript': ['.js', '.mjs', '.cjs', '.jsx'],
+    'typescript': ['.ts', '.tsx'],
+    'python': ['.py', '.pyw'],
+    'java': ['.java'],
+    'kotlin': ['.kt', '.kts'],
+    'cpp': ['.cpp', '.cc', '.cxx', '.c++', '.h', '.hpp', '.hxx'],
+    'c': ['.c', '.h'],
+    'go': ['.go'],
+    'rust': ['.rs'],
+    'swift': ['.swift'],
+    'scala': ['.scala'],
+    'csharp': ['.cs'],
+    'ruby': ['.rb'],
+    'php': ['.php'],
+    'lua': ['.lua'],
+    'bash': ['.sh', '.bash', '.zsh'],
+    'html': ['.html', '.htm'],
+    'css': ['.css', '.scss', '.sass'],
+    'vue': ['.vue'],
+    'json': ['.json'],
+    'yaml': ['.yaml', '.yml'],
+    'xml': ['.xml'],
+  };
+
+  return languageExtensionMap[language.toLowerCase()] || [];
+}
+
+/**
+ * 检查文件是否匹配指定语言
+ */
+function matchesLanguage(filePath: string, language?: string): boolean {
+  if (!language) {
+    return true; // 如果没有指定语言，匹配所有文件
+  }
+
+  const ext = path.extname(filePath).toLowerCase();
+  const extensions = getLanguageExtensions(language);
+  return extensions.includes(ext);
+}
+
+/**
  * 递归扫描目录中的所有代码文件
  */
 async function scanDirectory(dirPath: string, options: RepoMapOptions): Promise<string[]> {
@@ -670,7 +716,7 @@ async function scanDirectory(dirPath: string, options: RepoMapOptions): Promise<
             '.html', '.htm', '.vue'
           ];
 
-          if (supportedExtensions.includes(ext)) {
+          if (supportedExtensions.includes(ext) && matchesLanguage(fullPath, options.language)) {
             files.push(fullPath);
           }
         }

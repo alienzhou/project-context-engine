@@ -7,13 +7,16 @@
 ## 🚀 功能特性
 
 ### 📊 代码分析器 (Analyzer)
+
 - **智能代码分析**: 使用 AI 技术分析代码库结构和功能
 - **自动文档生成**: 生成项目总结、API 文档和代码说明
 - **Repository Map**: 创建代码库的符号映射图，便于理解项目结构
+- **语言过滤**: 支持指定特定语言进行分析，提高分析效率和精度
 - **多语言支持**: 支持 TypeScript、JavaScript、Python、Java、Go、C++ 等多种编程语言
 - **Tree-sitter 解析**: 使用 Tree-sitter 进行精确的语法分析
 
 ### 🎨 Markdown 渲染器 (Render)
+
 - **高质量渲染**: 将 Markdown 文件渲染为美观的 HTML
 - **Mermaid 图表支持**: 支持流程图、序列图、类图等多种图表类型
 - **主题切换**: 支持明暗两种主题模式
@@ -117,8 +120,14 @@ pnpm clean          # 清理构建文件
 ### 代码分析器专用
 
 ```bash
-pnpm start                    # 启动分析器
+pnpm start                              # 启动分析器
 cd apps/analyzer && pnpm test-repomap  # 测试仓库映射功能
+
+# Repository Map 语言过滤功能
+cd apps/analyzer
+node dist/code-analyzer/repomap/cli.js <目录> --language python    # 只分析 Python 文件
+node dist/code-analyzer/repomap/cli.js <目录> -l typescript        # 只分析 TypeScript 文件
+node test-repomap.js --language java                               # 测试特定语言
 ```
 
 ## 🔧 开发指南
@@ -131,7 +140,7 @@ cd apps/analyzer && pnpm test-repomap  # 测试仓库映射功能
 # 为分析器添加依赖
 pnpm --filter @project-context-engine/analyzer add <dependency>
 
-# 为渲染器添加依赖  
+# 为渲染器添加依赖
 pnpm --filter @project/render add <dependency>
 
 # 为共享包添加依赖
@@ -159,16 +168,19 @@ pnpm --filter <package-name> <script>
 ## 🌟 主要特性
 
 ### 智能代码分析
+
 - 自动识别项目架构和设计模式
 - 生成详细的代码文档和说明
 - 创建项目结构树和依赖关系图
 
 ### AI 驱动的文档生成
+
 - 利用大语言模型理解代码逻辑
 - 自动生成 README、API 文档
 - 提供代码改进建议
 
 ### 多格式输出
+
 - Markdown 格式的分析报告
 - HTML 格式的可视化文档
 - JSON 格式的结构化数据
@@ -184,4 +196,3 @@ ISC License
 ---
 
 **Project Context Engine** - 让代码分析和文档生成变得简单高效 🚀
-
