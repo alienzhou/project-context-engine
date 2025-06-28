@@ -6,12 +6,12 @@ import { type CodeNodeInfo } from '../type';
 
 type CodeNodeInfoWithoutFilepath = Omit<CodeNodeInfo, 'filePath'>;
 
-// 创建一个日志记录器，指定模块名为 'code-parser'
+// Create a logger with module name 'code-parser'
 const logger = Logger('code-parser');
 
-// 语言到Tree-sitter语法的映射
+// Language to Tree-sitter grammar mapping
 const languageMap: Record<string, string> = {
-  // JavaScript/TypeScript 生态
+  // JavaScript/TypeScript ecosystem
   'js': 'javascript',
   'mjs': 'javascript',
   'cjs': 'javascript',
@@ -23,7 +23,7 @@ const languageMap: Record<string, string> = {
   'py': 'python',
   'pyw': 'python',
 
-  // Java 生态
+  // Java ecosystem
   'java': 'java',
   'kt': 'kotlin',
   'kts': 'kotlin',
@@ -38,7 +38,7 @@ const languageMap: Record<string, string> = {
   'hpp': 'cpp',
   'hxx': 'cpp',
 
-  // 其他编程语言
+  // Other programming languages
   'go': 'go',
   'rs': 'rust',
   'swift': 'swift',
@@ -53,14 +53,14 @@ const languageMap: Record<string, string> = {
   'bash': 'bash',
   'zsh': 'bash',
 
-  // 配置文件（降级处理）
+  // Configuration files (fallback processing)
   'json': 'json',
   'yaml': 'yaml',
   'yml': 'yaml',
   'toml': 'toml',
   'xml': 'xml',
 
-  // Web 相关
+  // Web related
   'html': 'html',
   'htm': 'html',
   'css': 'css',
@@ -68,18 +68,18 @@ const languageMap: Record<string, string> = {
   'sass': 'css',
   'vue': 'vue',
 
-  // 新兴语言
+  // Emerging languages
   'zig': 'zig',
   'dart': 'dart',
 };
 
-// 初始化Tree-sitter的Promise
+// Promise for Tree-sitter initialization
 let parserInitPromise: Promise<void> | null = null;
-// 语言解析器的缓存
+// Cache for language parsers
 const parsers: Record<string, Parser> = {};
 
 /**
- * 初始化Tree-sitter解析器
+ * Initialize Tree-sitter parser
  */
 async function initParser(): Promise<void> {
   if (parserInitPromise) {
@@ -88,7 +88,7 @@ async function initParser(): Promise<void> {
 
   parserInitPromise = (async () => {
     try {
-      // 初始化树解析器
+      // Initialize tree parser
       await Parser.init();
       logger.info('Tree-sitter parser initialized successfully');
     } catch (error) {
@@ -101,9 +101,9 @@ async function initParser(): Promise<void> {
 }
 
 /**
- * 根据文件扩展名获取对应的语言解析器
+ * Get language parser based on file extension
  */
-// 语言降级映射：如果主要解析器不可用，尝试使用兼容的解析器
+// Language fallback mapping: if primary parser is unavailable, try compatible parsers
 const fallbackMap: Record<string, string[]> = {
   'typescript': ['javascript'],
   'tsx': ['javascript'],
@@ -118,11 +118,11 @@ const fallbackMap: Record<string, string[]> = {
   'pyw': ['python'],
   'mjs': ['javascript'],
   'cjs': ['javascript'],
-  'vue': ['javascript'], // Vue 文件降级到 JavaScript 解析器
+  'vue': ['javascript'], // Vue files fallback to JavaScript parser
 };
 
 async function getLanguageParser(extension: string): Promise<Parser | null> {
-  // 确保Parser已初始化
+  // Ensure Parser is initialized
   await initParser();
 
   const ext = extension.toLowerCase().substring(1);
@@ -133,24 +133,24 @@ async function getLanguageParser(extension: string): Promise<Parser | null> {
     return null;
   }
 
-  // 如果已经缓存了解析器，直接返回
+  // If parser is already cached, return it directly
   if (parsers[lang]) {
     return parsers[lang];
   }
 
-  // 尝试加载主要解析器
+  // Try loading primary parser
   const parser = await tryLoadParser(lang);
   if (parser) {
     return parser;
   }
 
-  // 尝试降级解析器
+  // Try fallback parsers
   const fallbacks = fallbackMap[lang] || [];
   for (const fallbackLang of fallbacks) {
     logger.info(`Trying fallback parser ${fallbackLang} for ${lang}`);
     const fallbackParser = await tryLoadParser(fallbackLang);
     if (fallbackParser) {
-      // 缓存降级解析器
+      // Cache fallback parser
       parsers[lang] = fallbackParser;
       return fallbackParser;
     }
@@ -168,7 +168,7 @@ async function tryLoadParser(lang: string): Promise<Parser | null> {
   try {
     const parser = new Parser();
 
-    // 多路径查找策略
+    // Multi-path lookup strategy
     const possiblePaths = [
       path.resolve(__dirname, `../../../node_modules/tree-sitter-wasms/out/tree-sitter-${lang}.wasm`),
       path.resolve(__dirname, `../../../../node_modules/tree-sitter-wasms/out/tree-sitter-${lang}.wasm`),
@@ -202,7 +202,7 @@ async function tryLoadParser(lang: string): Promise<Parser | null> {
 }
 
 /**
- * 从 Vue 文件中提取 <script> 和 <template> 部分的内容
+ * Extract <script> and <template> content from Vue files
  */
 function extractVueContent(vueContent: string): {
   script: string;
@@ -210,11 +210,11 @@ function extractVueContent(vueContent: string): {
   template: string;
   hasTemplate: boolean;
 } {
-  // 匹配 <script> 标签，支持 lang 属性
+  // Match <script> tag, supporting lang attribute
   const scriptRegex = /<script(?:\s+lang=["'](\w+)["'])?[^>]*>([\s\S]*?)<\/script>/i;
   const scriptMatch = vueContent.match(scriptRegex);
 
-  // 匹配 <template> 标签
+  // Match <template> tag
   const templateRegex = /<template[^>]*>([\s\S]*?)<\/template>/i;
   const templateMatch = vueContent.match(templateRegex);
 
@@ -227,7 +227,7 @@ function extractVueContent(vueContent: string): {
 }
 
 /**
- * HTML 元素信息
+ * HTML element information
  */
 interface HtmlElement {
   tagName: string;
@@ -238,24 +238,24 @@ interface HtmlElement {
 }
 
 /**
- * 从 HTML 文件中提取重要的标签结构
+ * Extract important tag structure from HTML files
  */
 function extractHtmlElements(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepath[] {
   const elements: CodeNodeInfoWithoutFilepath[] = [];
 
-  // 重要的语义化标签
+  // Important semantic tags
   const importantTags = new Set([
     'html', 'head', 'body', 'header', 'nav', 'main', 'section', 'article',
     'aside', 'footer', 'div', 'form', 'table', 'ul', 'ol', 'li'
   ]);
 
-  // 构建HTML层级结构，并记录节点信息
+  // Build HTML hierarchy structure and record node information
   function buildHtmlStructure(node: Parser.SyntaxNode, depth: number = 0): { element: HtmlElement; node: Parser.SyntaxNode } | null {
     if (node.type !== 'element') {
       return null;
     }
 
-    // 获取标签名
+    // Get tag name
     const startTag = node.child(0);
     if (!startTag || startTag.type !== 'start_tag') {
       return null;
@@ -268,11 +268,11 @@ function extractHtmlElements(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
 
     const tagName = tagNameNode.text.toLowerCase();
 
-    // 检查是否有 id 或 class 属性
+    // Check for id or class attributes
     const hasId = hasAttribute(startTag, 'id');
     const hasClass = hasAttribute(startTag, 'class');
 
-    // 只包含重要标签或有重要属性的元素
+    // Only include important tags or elements with important attributes
     const shouldInclude = importantTags.has(tagName) || hasId || hasClass;
 
     if (!shouldInclude) {
@@ -287,7 +287,7 @@ function extractHtmlElements(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
       depth
     };
 
-    // 递归处理子元素
+    // Process child elements recursively
     for (let i = 0; i < node.childCount; i++) {
       const child = node.child(i);
       if (child && child.type === 'element') {
@@ -301,14 +301,14 @@ function extractHtmlElements(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
     return { element, node };
   }
 
-  // 将HTML结构转换为签名字符串，采用智能过滤策略
+  // Convert HTML structure to signature string, using smart filtering strategy
   function convertToSignatures(element: HtmlElement, depth: number = 0, parentNode?: Parser.SyntaxNode): void {
-    // 构建树形缩进，使用空格和符号来表示层级
-    const indent = '  '.repeat(depth); // 每层缩进2个空格
-    const treeSymbol = depth === 0 ? '' : '├─ '; // 树形连接符
+    // Build tree indentation, using spaces and symbols to represent hierarchy
+    const indent = '  '.repeat(depth); // 2 spaces per level
+    const treeSymbol = depth === 0 ? '' : '├─ '; // Tree connection symbol
     const signature = `${indent}${treeSymbol}${element.tagName}`;
 
-    // 添加属性信息（如果有id或class）
+    // Add attribute information (if has id or class)
     let attributeInfo = '';
     if (element.hasId || element.hasClass) {
       const attrs = [];
@@ -319,7 +319,7 @@ function extractHtmlElements(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
 
     const fullSignature = signature + attributeInfo;
 
-    // 简化的HTML过滤逻辑：显示更多层级，专注于树形结构
+    // Simplified HTML filtering logic: show more levels, focus on tree structure
     const shouldInclude = shouldIncludeHtmlElement(element, depth);
 
     if (shouldInclude) {
@@ -328,7 +328,7 @@ function extractHtmlElements(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
         signature: fullSignature
       };
 
-      // 如果有父节点，尝试获取行号信息
+      // If there's a parent node, try to get line number information
       if (parentNode) {
         elementInfo.startLine = parentNode.startPosition.row + 1;
         elementInfo.endLine = parentNode.endPosition.row + 1;
@@ -337,128 +337,128 @@ function extractHtmlElements(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
       elements.push(elementInfo);
     }
 
-    // 递归处理子元素，增加缩进层级
+    // Process child elements recursively, increase indentation level
     for (const child of element.children) {
       convertToSignatures(child, depth + 1, parentNode);
     }
   }
 
-  // 专门为HTML设计的过滤函数 - 更宽松的策略以显示树形结构
+  // Special filtering function for HTML - More relaxed strategy to show tree structure
   function shouldIncludeHtmlElement(element: HtmlElement, depth: number): boolean {
     const tagName = element.tagName;
 
-    // 限制最大深度为6层，避免过深嵌套
+    // Limit maximum depth to 6 layers, avoid too deep nesting
     if (depth > 6) {
       return false;
     }
 
-    // 1. 总是包含顶级结构标签
+    // 1. Always include top-level structure tags
     if (['html', 'head', 'body'].includes(tagName)) {
       return true;
     }
 
-    // 2. 包含重要的语义化标签（不管层级）
+    // 2. Include important semantic tags (regardless of level)
     const semanticTags = ['header', 'nav', 'main', 'section', 'article', 'aside', 'footer'];
     if (semanticTags.includes(tagName)) {
       return true;
     }
 
-    // 3. 包含有 id 的元素（这些通常是重要的）
+    // 3. Include elements with id (these are usually important)
     if (element.hasId) {
       return true;
     }
 
-    // 4. 包含有 class 的元素（这些通常是重要的）
+    // 4. Include elements with class (these are usually important)
     if (element.hasClass) {
       return true;
     }
 
-    // 5. 表单相关元素
+    // 5. Form related elements
     if (['form', 'table', 'ul', 'ol', 'li'].includes(tagName)) {
       return true;
     }
 
-    // 6. 常见的重要标签
+    // 6. Common important tags
     const commonTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'button', 'input', 'select'];
     if (commonTags.includes(tagName)) {
       return true;
     }
 
-    // 7. div 元素在浅层显示
+    // 7. div element in shallow display
     if (tagName === 'div' && depth <= 4) {
       return true;
     }
 
-    // 8. 默认不包含
+    // 8. Default not included
     return false;
   }
 
-  // 判断是否应该包含这个元素
+  // Determine whether to include this element
   function shouldIncludeElement(element: HtmlElement, path: string[]): boolean {
     const depth = path.length;
     const tagName = element.tagName;
 
-    // 限制最大深度为10层，避免过深嵌套
+    // Limit maximum depth to 10 layers, avoid too deep nesting
     if (depth > 10) {
       return false;
     }
 
-    // 1. 总是包含顶级结构标签
+    // 1. Always include top-level structure tags
     if (['html', 'head', 'body'].includes(tagName)) {
       return true;
     }
 
-    // 2. 包含重要的语义化标签（不管层级）
+    // 2. Include important semantic tags (regardless of level)
     const semanticTags = ['header', 'nav', 'main', 'section', 'article', 'aside', 'footer'];
     if (semanticTags.includes(tagName)) {
       return true;
     }
 
-    // 3. 包含有 id 的元素（这些通常是重要的）
+    // 3. Include elements with id (these are usually important)
     if (element.hasId) {
       return true;
     }
 
-    // 4. 对于 div，放宽限制
+    // 4. For div, relax restrictions
     if (tagName === 'div') {
-      // 有 class 或 id 的 div 在深度8层内
+      // div with class or id in depth 8 layers
       if (element.hasClass || element.hasId) {
         return depth <= 8;
       }
-      // 普通 div 在深度5层内
+      // Normal div in depth 5 layers
       return depth <= 5;
     }
 
-    // 5. 表单相关元素，放宽限制
+    // 5. Form related elements, relax restrictions
     if (['form', 'table', 'ul', 'ol', 'li'].includes(tagName)) {
       return depth <= 8;
     }
 
-    // 6. 其他有 class 的元素在深度7层内
+    // 6. Other elements with class in depth 7 layers
     if (element.hasClass) {
       return depth <= 7;
     }
 
-    // 7. 常见的重要标签
+    // 7. Common important tags
     const commonTags = ['a', 'button', 'input', 'select', 'textarea', 'img', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
     if (commonTags.includes(tagName)) {
       return depth <= 6;
     }
 
-    // 8. 默认不包含
+    // 8. Default not included
     return false;
   }
 
-  // 只处理顶级文档元素，避免重复
+  // Only process top-level document elements, avoid repetition
   function processTopLevelElements(node: Parser.SyntaxNode): void {
-    // 直接查找 html 元素作为根节点
+    // Directly find html element as root node
     for (let i = 0; i < node.childCount; i++) {
       const child = node.child(i);
       if (child && child.type === 'element') {
         const result = buildHtmlStructure(child);
         if (result) {
           convertToSignatures(result.element, 0, result.node);
-          return; // 只处理第一个顶级元素（通常是 html）
+          return; // Only process the first top-level element (usually html)
         }
       }
     }
@@ -469,14 +469,14 @@ function extractHtmlElements(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
 }
 
 /**
- * 检查标签是否有指定属性
+ * Check if tag has specified attribute
  */
 function hasAttribute(startTag: Parser.SyntaxNode, attributeName: string): boolean {
   for (let i = 0; i < startTag.childCount; i++) {
     const child = startTag.child(i);
     if (child && child.type === 'attribute') {
-      // HTML 属性的结构通常是: attribute_name="attribute_value"
-      const nameNode = child.child(0); // 第一个子节点是属性名
+      // HTML attribute structure is usually: attribute_name="attribute_value"
+      const nameNode = child.child(0); // First child node is attribute name
       if (nameNode && nameNode.type === 'attribute_name') {
         const attrName = nameNode.text.toLowerCase();
         if (attrName === attributeName.toLowerCase()) {
@@ -489,14 +489,14 @@ function hasAttribute(startTag: Parser.SyntaxNode, attributeName: string): boole
 }
 
 /**
- * 检查标签是否有重要属性（id 或 class）
+ * Check if tag has important attributes (id or class)
  */
 function hasImportantAttributes(startTag: Parser.SyntaxNode): boolean {
   return hasAttribute(startTag, 'id') || hasAttribute(startTag, 'class');
 }
 
 /**
- * 提取标签的属性
+ * Extract tag attributes
  */
 function extractAttributes(startTag: Parser.SyntaxNode): { id?: string; class?: string;[key: string]: string | undefined } {
   const attributes: { id?: string; class?: string;[key: string]: string | undefined } = {};
@@ -504,18 +504,18 @@ function extractAttributes(startTag: Parser.SyntaxNode): { id?: string; class?: 
   for (let i = 0; i < startTag.childCount; i++) {
     const child = startTag.child(i);
     if (child && child.type === 'attribute') {
-      // HTML 属性结构: attribute_name="attribute_value" 或 attribute_name='attribute_value'
-      const nameNode = child.child(0); // 属性名
-      const valueNode = child.child(2); // 属性值（跳过 = 符号）
+      // HTML attribute structure: attribute_name="attribute_value" or attribute_name='attribute_value'
+      const nameNode = child.child(0); // Attribute name
+      const valueNode = child.child(2); // Attribute value (skip = symbol)
 
       if (nameNode && nameNode.type === 'attribute_name' && valueNode && valueNode.type === 'quoted_attribute_value') {
         const attrName = nameNode.text.toLowerCase();
 
-        // 在 quoted_attribute_value 中查找实际的属性值
-        const actualValueNode = valueNode.child(1); // 中间的子节点是 attribute_value
+        // Find actual attribute value in quoted_attribute_value
+        const actualValueNode = valueNode.child(1); // Middle child node is attribute_value
         let attrValue = actualValueNode ? actualValueNode.text : valueNode.text;
 
-        // 如果没有找到子节点，则移除引号
+        // If no child node is found, remove quotes
         if (!actualValueNode) {
           if ((attrValue.startsWith('"') && attrValue.endsWith('"')) ||
             (attrValue.startsWith("'") && attrValue.endsWith("'"))) {
@@ -532,14 +532,14 @@ function extractAttributes(startTag: Parser.SyntaxNode): { id?: string; class?: 
 }
 
 /**
- * 从 Vue 组件对象中提取方法
+ * Extract methods from Vue component object
  */
 function extractVueComponentMethods(objectNode: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutFilepath[]): void {
   for (let i = 0; i < objectNode.childCount; i++) {
     const child = objectNode.child(i);
     if (!child) continue;
 
-    // 处理直接的方法定义（如 data(), mounted() 等）
+    // Process direct method definition (e.g., data(), mounted() etc.)
     if (child.type === 'method_definition') {
       const nameNode = child.childForFieldName('name');
       const paramsNode = child.childForFieldName('parameters');
@@ -561,20 +561,20 @@ function extractVueComponentMethods(objectNode: Parser.SyntaxNode, snippets: Cod
 
     if (child.type !== 'pair') continue;
 
-    // 检查是否是 methods 属性
+    // Check if it's methods property
     const keyNode = child.childForFieldName('key');
     const valueNode = child.childForFieldName('value');
 
     if (keyNode && valueNode &&
       (keyNode.text === 'methods' || keyNode.text === '"methods"' || keyNode.text === "'methods'")) {
 
-      // 遍历 methods 对象中的所有方法
+      // Iterate through all methods in methods object
       if (valueNode.type === 'object') {
         for (let j = 0; j < valueNode.childCount; j++) {
           const methodChild = valueNode.child(j);
           if (!methodChild) continue;
 
-          // 处理直接的方法定义（Vue methods 中的方法）
+          // Process direct method definition (methods in Vue methods)
           if (methodChild.type === 'method_definition') {
             const nameNode = methodChild.childForFieldName('name');
             const paramsNode = methodChild.childForFieldName('parameters');
@@ -594,7 +594,7 @@ function extractVueComponentMethods(objectNode: Parser.SyntaxNode, snippets: Cod
             continue;
           }
 
-          // 处理 pair 类型的方法（函数表达式形式）
+          // Process pair type methods (function expression form)
           if (methodChild.type === 'pair') {
             const methodKeyNode = methodChild.childForFieldName('key');
             const methodValueNode = methodChild.childForFieldName('value');
@@ -602,10 +602,10 @@ function extractVueComponentMethods(objectNode: Parser.SyntaxNode, snippets: Cod
             if (methodKeyNode && methodValueNode &&
               (methodValueNode.type === 'function' || methodValueNode.type === 'arrow_function')) {
 
-              // 提取方法名
+              // Extract method name
               const methodName = methodKeyNode.text.replace(/['"]/g, '');
 
-              // 创建方法签名
+              // Create method signature
               const paramsNode = methodValueNode.childForFieldName('parameters');
               const paramsText = paramsNode ? paramsNode.text : '()';
 
@@ -624,11 +624,11 @@ function extractVueComponentMethods(objectNode: Parser.SyntaxNode, snippets: Cod
       }
     }
 
-    // 检查其他生命周期钩子和计算属性
+    // Check other lifecycle hooks and computed properties
     if (keyNode && valueNode) {
       const key = keyNode.text.replace(/['"]/g, '');
 
-      // Vue 生命周期钩子
+      // Vue lifecycle hooks
       const lifecycleHooks = [
         'data', 'computed', 'watch', 'created', 'mounted', 'updated',
         'destroyed', 'beforeCreate', 'beforeMount', 'beforeUpdate',
@@ -651,7 +651,7 @@ function extractVueComponentMethods(objectNode: Parser.SyntaxNode, snippets: Cod
             endLine: valueNode.endPosition.row + 1
           });
         } else if (key === 'computed' && valueNode.type === 'object') {
-          // 处理计算属性
+          // Process computed properties
           for (let j = 0; j < valueNode.childCount; j++) {
             const computedPair = valueNode.child(j);
             if (!computedPair || computedPair.type !== 'pair') continue;
@@ -684,12 +684,12 @@ function extractVueComponentMethods(objectNode: Parser.SyntaxNode, snippets: Cod
 }
 
 /**
- * 从类内部提取方法和函数
+ * Extract methods and functions from class
  */
 function extractMethodsFromClass(classNode: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutFilepath[]): void {
-  // 递归搜索类内部的所有子节点
+  // Recursively search all child nodes of the class
   function searchNode(node: Parser.SyntaxNode): void {
-    // 检查当前节点是否为方法或函数
+    // Check if current node is method or function
     const isMethod = [
       // Java
       'method_declaration', 'constructor_declaration',
@@ -697,9 +697,9 @@ function extractMethodsFromClass(classNode: Parser.SyntaxNode, snippets: CodeNod
       'function_declaration', 'property_declaration',
       // C++
       'function_definition', 'function_declarator',
-      // JavaScript/TypeScript (类方法)
+      // JavaScript/TypeScript (class methods)
       'method_definition',
-      // 其他通用类型
+      // Other common types
       'function_declaration'
     ].includes(node.type);
 
@@ -707,7 +707,7 @@ function extractMethodsFromClass(classNode: Parser.SyntaxNode, snippets: CodeNod
       processFunction(node, snippets);
     }
 
-    // 递归搜索子节点，但不要进入嵌套的类定义
+    // Recursively search child nodes, but do not enter nested class definitions
     for (let i = 0; i < node.childCount; i++) {
       const child = node.child(i);
       if (child && child.type !== 'class_declaration' && child.type !== 'class_specifier') {
@@ -716,11 +716,11 @@ function extractMethodsFromClass(classNode: Parser.SyntaxNode, snippets: CodeNod
     }
   }
 
-  // 查找类体节点
+  // Find class body node
   const bodyNode = classNode.childForFieldName('body') || classNode.children.find(c => c.type === 'class_body');
 
   if (bodyNode) {
-    // 直接遍历类体中的方法定义
+    // Directly iterate through method definitions in class body
     for (let i = 0; i < bodyNode.childCount; i++) {
       const child = bodyNode.child(i);
       if (!child) continue;
@@ -728,27 +728,25 @@ function extractMethodsFromClass(classNode: Parser.SyntaxNode, snippets: CodeNod
       if (child.type === 'method_definition') {
         processFunction(child, snippets);
       } else {
-        // 递归搜索其他可能包含方法的节点
+        // Recursively search other possible nodes containing methods
         searchNode(child);
       }
     }
   } else {
-    // 如果找不到类体，使用原来的递归搜索
+    // If no class body is found, use original recursive search
     searchNode(classNode);
   }
 }
 
 /**
- * 从语法树中提取函数/方法声明
+ * Extract function/method declaration from syntax tree
  */
 function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepath[] {
   const snippets: CodeNodeInfoWithoutFilepath[] = [];
 
-
-
-  // 递归处理节点 - 支持预处理器块等嵌套结构
+  // Recursively process node - Support preprocessor block etc. nested structures
   function processNode(node: Parser.SyntaxNode): void {
-    // 检查节点类型是否为函数/方法定义相关的类型
+    // Check if node type is related to function/method definition type
     const isFunctionLike = [
       // JavaScript/TypeScript
       'function_declaration', 'method_definition', 'function', 'arrow_function', 'class_declaration', 'method_declaration',
@@ -772,23 +770,23 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
       'interface_declaration', 'type_alias_declaration'
     ].includes(node.type);
 
-    // 检查是否为预处理器块或其他容器节点
+    // Check if it's preprocessor block or other container node
     const isContainer = [
       'preproc_ifdef', 'preproc_if', 'preproc_ifndef', 'namespace_definition', 'linkage_specifier'
     ].includes(node.type);
 
-    // 检查是否为导出声明（可能包含函数定义）
+    // Check if it's export declaration (possibly containing function definition)
     const isExport = node.type === 'export_statement';
 
     if (isFunctionLike) {
       processFunction(node, snippets);
 
-      // 如果是类声明，递归搜索类内部的方法
+      // If it's class declaration, recursively search class internal methods
       if (node.type === 'class_declaration' || node.type === 'class_specifier') {
         extractMethodsFromClass(node, snippets);
       }
     } else if (isContainer) {
-      // 递归处理容器内部的节点
+      // Recursively process nodes inside container
       for (let j = 0; j < node.childCount; j++) {
         const child = node.child(j);
         if (child) {
@@ -796,7 +794,7 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
         }
       }
     } else if (isExport) {
-      // 处理导出的函数声明
+      // Process exported function declaration
       for (let j = 0; j < node.childCount; j++) {
         const exportedNode = node.child(j);
         if (!exportedNode) continue;
@@ -812,18 +810,18 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
         if (isExportedFunction) {
           processFunction(exportedNode, snippets);
 
-          // 如果是导出的类，也要提取类方法
+          // If it's exported class, also extract class methods
           if (exportedNode.type === 'class_declaration') {
             extractMethodsFromClass(exportedNode, snippets);
           }
         }
 
-        // 直接检查是否是对象字面量（Vue 组件）
+        // Directly check if it's object literal (Vue component)
         if (exportedNode.type === 'object') {
           extractVueComponentMethods(exportedNode, snippets);
         }
 
-        // 处理导出声明中的默认声明
+        // Process default declaration in export declaration
         if (exportedNode.type === 'default') {
           for (let k = 0; k < exportedNode.childCount; k++) {
             const defaultNode = exportedNode.child(k);
@@ -840,19 +838,19 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
             if (isDefaultFunction) {
               processFunction(defaultNode, snippets);
 
-              // 如果是默认导出的类，也要提取类方法
+              // If it's default exported class, also extract class methods
               if (defaultNode.type === 'class_declaration') {
                 extractMethodsFromClass(defaultNode, snippets);
               }
             } else if (defaultNode.type === 'object') {
-              // 处理 Vue 组件的 export default {} 语法
+              // Process Vue component export default {} syntax
               extractVueComponentMethods(defaultNode, snippets);
             }
           }
         }
       }
     } else if (node.type === 'lexical_declaration' || node.type === 'variable_declaration') {
-      // 处理通过 const/let/var 声明的函数表达式
+      // Process function expression declared through const/let/var
       for (let j = 0; j < node.childCount; j++) {
         const varNode = node.child(j);
         if (varNode && varNode.type === 'variable_declarator') {
@@ -870,7 +868,7 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
     }
   }
 
-  // 遍历语法树的所有子节点
+  // Iterate through all child nodes of syntax tree
   for (let i = 0; i < root.childCount; i++) {
     const node = root.child(i);
     if (node) {
@@ -882,59 +880,59 @@ function extractCodeSnippets(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
 }
 
 /**
- * 处理函数节点，提取其文本和签名
+ * Process function node, extract its text and signature
  */
 function processFunction(node: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutFilepath[], nameOverride?: string): void {
-  // 获取完整的函数/方法文本
+  // Get complete function/method text
   const fullText = node.text;
 
-  // 提取函数/方法签名
+  // Extract function/method signature
   let signature = '';
 
-  // 根据不同的节点类型提取签名
+  // Extract signature based on different node types
   if (node.type === 'function_declaration') {
-    // 查找函数体开始的位置
+    // Find function body start position
     const bodyNode = node.childForFieldName('body');
     if (bodyNode) {
-      // 查找函数名和参数
+      // Find function name and parameters
       const nameNode = node.childForFieldName('name');
       const paramsNode = node.childForFieldName('parameters');
 
       if (nameNode && paramsNode) {
-        // 直接构建签名，确保包含函数名和参数
+        // Directly build signature, ensure including function name and parameters
         signature = `function ${nameNode.text}${paramsNode.text} { }`;
       } else {
-        // 如果无法获取名称或参数，退回到简单的文本提取
+        // If cannot get name or parameters, fall back to simple text extraction
         signature = fullText.substring(0, bodyNode.startPosition.column - node.startPosition.column) + ' { }';
       }
     }
   } else if (node.type === 'method_definition' || node.type === 'method_declaration') {
-    // 查找方法体开始的位置
+    // Find method body start position
     const bodyNode = node.childForFieldName('body');
     if (bodyNode) {
-      // 查找方法名和参数
+      // Find method name and parameters
       const nameNode = node.childForFieldName('name');
       const paramsNode = node.childForFieldName('parameters');
       if (nameNode && paramsNode) {
-        // 直接构建签名，确保包含方法名和参数
+        // Directly build signature, ensure including method name and parameters
         signature = `${nameNode.text}${paramsNode.text} { }`;
       } else {
-        // 如果无法获取名称或参数，退回到简单的文本提取
+        // If cannot get name or parameters, fall back to simple text extraction
         signature = fullText.substring(0, bodyNode.startPosition.column - node.startPosition.column) + ' { }';
       }
     }
   } else if (node.type === 'arrow_function') {
-    // 对于箭头函数，如果提供了名称重写，使用它
+    // For arrow function, use nameOverride if provided
     if (nameOverride) {
       const paramsText = node.childForFieldName('parameters')?.text || '()';
       signature = `${nameOverride} = ${paramsText} => { }`;
     } else {
-      // 查找箭头函数参数
+      // Find arrow function parameters
       const paramsNode = node.childForFieldName('parameters');
       if (paramsNode) {
         signature = `${paramsNode.text} => { }`;
       } else {
-        // 如果无法获取参数，退回到简单的文本提取
+        // If cannot get parameters, fall back to simple text extraction
         const arrowPos = fullText.indexOf('=>');
         if (arrowPos !== -1) {
           signature = fullText.substring(0, arrowPos + 2) + ' { }';
@@ -942,12 +940,12 @@ function processFunction(node: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutF
       }
     }
   } else if (node.type === 'function') {
-    // 对于函数表达式，如果提供了名称重写，使用它
+    // For function expression, use nameOverride if provided
     if (nameOverride) {
       const paramsText = node.childForFieldName('parameters')?.text || '()';
       signature = `${nameOverride} = function${paramsText} { }`;
     } else {
-      // 查找函数名（如果有）和参数
+      // Find function name (if any) and parameters
       const nameNode = node.childForFieldName('name');
       const paramsNode = node.childForFieldName('parameters');
 
@@ -955,7 +953,7 @@ function processFunction(node: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutF
         const nameText = nameNode ? nameNode.text : '';
         signature = `function ${nameText}${paramsNode.text} { }`;
       } else {
-        // 如果无法获取参数，退回到简单的文本提取
+        // If cannot get parameters, fall back to simple text extraction
         const bodyNode = node.childForFieldName('body');
         if (bodyNode) {
           signature = fullText.substring(0, bodyNode.startPosition.column - node.startPosition.column) + ' { }';
@@ -963,30 +961,30 @@ function processFunction(node: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutF
       }
     }
   } else if (node.type === 'class_declaration') {
-    // 对于类声明，提取类签名和其中的方法签名
+    // For class declaration, extract class signature and its method signatures
     const bodyNode = node.childForFieldName('body');
     const nameNode = node.childForFieldName('name');
 
     if (nameNode && bodyNode) {
-      // 首先创建类的基本签名
+      // First create class basic signature
       let classSignature = `class ${nameNode.text} {`;
 
-      // 遍历类体中的所有子节点，查找方法定义
+      // Iterate through all child nodes in class body, find method definitions
       const methodSignatures: string[] = [];
       for (let i = 0; i < bodyNode.childCount; i++) {
         const child = bodyNode.child(i);
         if (!child) continue;
         if (child.type === 'method_definition') {
-          // 对于每个方法，提取其签名
+          // For each method, extract its signature
           const methodNameNode = child.childForFieldName('name');
           const methodParamsNode = child.childForFieldName('parameters');
 
           if (methodNameNode && methodParamsNode) {
-            // 构建方法签名
+            // Build method signature
             methodSignatures.push(`  ${methodNameNode.text}${methodParamsNode.text} { }`);
           }
         } else if (child.type === 'public_field_definition') {
-          // 处理类中的公共字段
+          // Process public fields in class
           const fieldNameNode = child.childForFieldName('name');
           if (fieldNameNode) {
             methodSignatures.push(`  ${fieldNameNode.text};`);
@@ -994,7 +992,7 @@ function processFunction(node: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutF
         }
       }
 
-      // 将所有方法签名合并到类签名中
+      // Merge all method signatures into class signature
       if (methodSignatures.length > 0) {
         classSignature += '\n' + methodSignatures.join('\n') + '\n}';
       } else {
@@ -1007,7 +1005,7 @@ function processFunction(node: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutF
     }
   }
 
-  // 如果无法提取签名，则使用完整文本
+  // If cannot extract signature, use full text
   if (!signature) {
     signature = fullText;
   }
@@ -1021,10 +1019,10 @@ function processFunction(node: Parser.SyntaxNode, snippets: CodeNodeInfoWithoutF
 }
 
 /**
- * 解析代码文件为方法片段
+ * Parse code file into method snippets
  * 
- * @param filePath 文件路径
- * @returns 代码片段信息数组
+ * @param filePath File path
+ * @returns Array of code snippet information
  */
 export async function parseCodeFile(filePath: string): Promise<CodeNodeInfo[]> {
   try {
@@ -1037,14 +1035,14 @@ export async function parseCodeFile(filePath: string): Promise<CodeNodeInfo[]> {
     const ext = path.extname(filePath);
     let actualExt = ext;
 
-    // 特殊处理 Vue 文件
+    // Special handling for Vue files
     if (ext.toLowerCase() === '.vue') {
       const { script, lang, template, hasTemplate } = extractVueContent(fileContent);
       const snippets: CodeNodeInfo[] = [];
 
-      // 处理 script 部分
+      // Process script section
       if (script.trim()) {
-        // 根据 script 标签的 lang 属性确定实际的语言类型
+        // Determine actual language type based on script tag's lang attribute
         const scriptExt = lang === 'ts' || lang === 'typescript' ? '.ts' : '.js';
         const parser = await getLanguageParser(scriptExt);
 
@@ -1056,7 +1054,7 @@ export async function parseCodeFile(filePath: string): Promise<CodeNodeInfo[]> {
         }
       }
 
-      // 添加script和template之间的分隔符
+      // Add separator between script and template
       if (script.trim() && hasTemplate) {
         snippets.push({
           fullText: '--- Template ---',
@@ -1067,11 +1065,11 @@ export async function parseCodeFile(filePath: string): Promise<CodeNodeInfo[]> {
         });
       }
 
-      // 处理 template 部分
+      // Process template section
       if (hasTemplate) {
         const htmlParser = await getLanguageParser('.html');
         if (htmlParser) {
-          // 将template内容包装成完整的HTML文档以便解析
+          // Wrap template content in complete HTML document for parsing
           const wrappedTemplate = `<div>${template}</div>`;
           const tree = htmlParser.parse(wrappedTemplate);
           const templateElements = extractHtmlElements(tree.rootNode);
@@ -1087,7 +1085,7 @@ export async function parseCodeFile(filePath: string): Promise<CodeNodeInfo[]> {
       return snippets;
     }
 
-    // 特殊处理 HTML 文件
+    // Special handling for HTML files
     if (ext.toLowerCase() === '.html' || ext.toLowerCase() === '.htm') {
       const parser = await getLanguageParser(actualExt);
       if (!parser) {
@@ -1095,13 +1093,11 @@ export async function parseCodeFile(filePath: string): Promise<CodeNodeInfo[]> {
         return [];
       }
 
-      // 解析 HTML 内容
+      // Parse HTML content
       const tree = parser.parse(fileContent);
 
-      // 提取 HTML 元素结构
+      // Extract HTML element structure
       const elements = extractHtmlElements(tree.rootNode);
-
-
 
       logger.info(`Parsed HTML file ${filePath}, found ${elements.length} important elements`);
 
@@ -1117,10 +1113,10 @@ export async function parseCodeFile(filePath: string): Promise<CodeNodeInfo[]> {
       return [];
     }
 
-    // 解析代码内容
+    // Parse code content
     const tree = parser.parse(fileContent);
 
-    // 提取代码片段
+    // Extract code snippets
     const snippets = extractCodeSnippets(tree.rootNode);
 
     logger.info(`Parsed file ${filePath}, found ${snippets.length} code snippets`);

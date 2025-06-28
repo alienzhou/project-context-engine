@@ -1,7 +1,7 @@
 const { generateRepoMap } = require('./dist/code-analyzer/repomap/index.js');
 const path = require('path');
 
-// 解析命令行参数
+// Parse command line arguments
 function parseArgs() {
   const args = process.argv.slice(2);
   const options = {};
@@ -14,21 +14,21 @@ function parseArgs() {
       options.maxTokens = parseInt(args[++i]);
     } else if (arg === '--help' || arg === '-h') {
       console.log(`
-使用方法: node test-repomap.js [选项]
+Usage: node test-repomap.js [options]
 
-选项:
-  -l, --language <lang>     指定要测试的语言 (可选)
-  -t, --max-tokens <num>    最大 token 数量 (默认: 4096)
-  -h, --help                显示帮助信息
+Options:
+  -l, --language <lang>     Specify the language to test (optional)
+  -t, --max-tokens <num>    Maximum number of tokens (default: 4096)
+  -h, --help               Show help information
 
-支持的语言:
+Supported Languages:
   javascript, typescript, python, java, kotlin, cpp, c, go, rust, swift, 
   scala, csharp, ruby, php, lua, bash, html, css, vue, json, yaml, xml
 
-示例:
-  node test-repomap.js                    # 测试所有语言
-  node test-repomap.js --language python # 只测试 Python 文件
-  node test-repomap.js -l typescript     # 只测试 TypeScript 文件
+Examples:
+  node test-repomap.js                    # Test all languages
+  node test-repomap.js --language python  # Test Python files only
+  node test-repomap.js -l typescript      # Test TypeScript files only
 `);
       process.exit(0);
     }
@@ -38,8 +38,8 @@ function parseArgs() {
 }
 
 async function runTest(language, maxTokens = 4096) {
-  const testName = language ? `${language.toUpperCase()} 文件` : '所有支持的语言';
-  console.log(`=== 测试 Repo Map 功能 (${testName}) ===\n`);
+  const testName = language ? `${language.toUpperCase()} files` : 'all supported languages';
+  console.log(`=== Testing Repo Map functionality (${testName}) ===\n`);
 
   try {
     const result = await generateRepoMap('../../test-multilang', {
@@ -50,17 +50,17 @@ async function runTest(language, maxTokens = 4096) {
       language,
     });
 
-    console.log('📊 统计信息:');
-    console.log(`  - 文件数量: ${result.files.length}`);
-    console.log(`  - 符号总数: ${result.totalSymbols}`);
-    console.log(`  - 预估 tokens: ${result.estimatedTokens}`);
+    console.log('📊 Statistics:');
+    console.log(`  - Number of files: ${result.files.length}`);
+    console.log(`  - Total symbols: ${result.totalSymbols}`);
+    console.log(`  - Estimated tokens: ${result.estimatedTokens}`);
 
     if (language) {
-      console.log(`  - 过滤语言: ${language}`);
-      // 验证是否只包含指定语言的文件
+      console.log(`  - Filtered language: ${language}`);
+      // Verify that only files of the specified language are included
       const fileExtensions = result.files.map(f => path.extname(f.relativePath).toLowerCase());
       const uniqueExtensions = [...new Set(fileExtensions)];
-      console.log(`  - 文件扩展名: ${uniqueExtensions.join(', ')}`);
+      console.log(`  - File extensions: ${uniqueExtensions.join(', ')}`);
     }
 
     console.log('\n📝 Repository Map:');
@@ -70,7 +70,7 @@ async function runTest(language, maxTokens = 4096) {
 
     return result;
   } catch (error) {
-    console.error('❌ 测试失败:', error.message);
+    console.error('❌ Test failed:', error.message);
     throw error;
   }
 }
@@ -79,14 +79,14 @@ async function runAllTests() {
   const options = parseArgs();
 
   if (options.language) {
-    // 测试指定语言
+    // Test specified language
     await runTest(options.language, options.maxTokens);
   } else {
-    // 运行多个测试用例
-    console.log('🧪 运行多个测试用例...\n');
+    // Run multiple test cases
+    console.log('🧪 Running multiple test cases...\n');
 
     const testCases = [
-      { language: undefined, name: '所有语言' },
+      { language: undefined, name: 'All languages' },
       { language: 'python', name: 'Python' },
       { language: 'typescript', name: 'TypeScript' },
       { language: 'java', name: 'Java' },
@@ -96,9 +96,9 @@ async function runAllTests() {
       try {
         console.log(`\n${'='.repeat(60)}`);
         await runTest(testCase.language, options.maxTokens);
-        console.log(`✅ ${testCase.name} 测试通过`);
+        console.log(`✅ ${testCase.name} test passed`);
       } catch (error) {
-        console.error(`❌ ${testCase.name} 测试失败:`, error.message);
+        console.error(`❌ ${testCase.name} test failed:`, error.message);
       }
     }
   }

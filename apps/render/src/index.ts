@@ -1,14 +1,14 @@
 import { MarkdownRenderer } from './renderer';
 import * as path from 'path';
 import * as fs from 'fs';
-// 解析命令行参数
+// Parse command line arguments
 function parseArgs(): { filename?: string; theme?: 'dark' | 'light'; help?: boolean; all?: boolean } {
   const args = process.argv.slice(2);
   const result: { filename?: string; theme?: 'dark' | 'light'; help?: boolean; all?: boolean } = {};
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    
+
     if (arg === '--help' || arg === '-h') {
       result.help = true;
     } else if (arg === '--all' || arg === '-a') {
@@ -17,12 +17,12 @@ function parseArgs(): { filename?: string; theme?: 'dark' | 'light'; help?: bool
       const theme = args[i + 1];
       if (theme === 'dark' || theme === 'light') {
         result.theme = theme;
-        i++; // 跳过下一个参数
+        i++; // Skip next argument
       } else {
-        console.warn(`警告: 无效的主题 "${theme}"，使用默认主题 "dark"`);
+        console.warn(`Warning: Invalid theme "${theme}", using default theme "dark"`);
       }
     } else if (!arg.startsWith('-')) {
-      // 第一个非选项参数作为文件名
+      // First non-option argument as filename
       if (!result.filename) {
         result.filename = arg;
       }
@@ -32,35 +32,35 @@ function parseArgs(): { filename?: string; theme?: 'dark' | 'light'; help?: bool
   return result;
 }
 
-// 显示帮助信息
+// Show help information
 function showHelp() {
   console.log(`
-Markdown 渲染器
+Markdown Renderer
 
-用法:
-  node dist/index.js [文件名] [选项]
+Usage:
+  node dist/index.js [filename] [options]
 
-参数:
-  文件名              要渲染的 Markdown 文件名（不包含扩展名）
-                     例如: "1" 将渲染 "1.md"
-                     如果不指定，默认渲染 "1.md"
+Arguments:
+  filename            Markdown file to render (without extension)
+                     Example: "1" will render "1.md"
+                     If not specified, defaults to "1.md"
 
-选项:
-  -a, --all          渲染所有找到的 Markdown 文件
-  -t, --theme <主题>  指定主题 (dark|light)，默认: dark
-  -h, --help         显示此帮助信息
+Options:
+  -a, --all          Render all found Markdown files
+  -t, --theme <theme> Specify theme (dark|light), default: dark
+  -h, --help         Show this help information
 
-示例:
-  node dist/index.js                    # 渲染 1.md，使用暗色主题
-  node dist/index.js 2                  # 渲染 2.md，使用暗色主题
-  node dist/index.js --all              # 渲染所有 .md 文件，使用暗色主题
-  node dist/index.js --all --theme light # 渲染所有 .md 文件，使用浅色主题
-  node dist/index.js readme --theme light  # 渲染 readme.md，使用浅色主题
-  node dist/index.js doc -t dark        # 渲染 doc.md，使用暗色主题
+Examples:
+  node dist/index.js                    # Render 1.md with dark theme
+  node dist/index.js 2                  # Render 2.md with dark theme
+  node dist/index.js --all              # Render all .md files with dark theme
+  node dist/index.js --all --theme light # Render all .md files with light theme
+  node dist/index.js readme --theme light  # Render readme.md with light theme
+  node dist/index.js doc -t dark        # Render doc.md with dark theme
 `);
 }
 
-// 查找 Markdown 文件
+// Find Markdown file
 function findMarkdownFile(filename: string): string | null {
   const dataDir = path.join(__dirname, '../data');
   const possiblePaths = [
@@ -79,13 +79,13 @@ function findMarkdownFile(filename: string): string | null {
   return null;
 }
 
-// 查找所有 Markdown 文件
+// Find all Markdown files
 function findAllMarkdownFiles(): string[] {
   const dataDir = path.join(__dirname, '../data');
   const currentDir = process.cwd();
   const allFiles: string[] = [];
 
-  // 在 data 目录中查找
+  // Search in data directory
   if (fs.existsSync(dataDir)) {
     const dataFiles = fs.readdirSync(dataDir)
       .filter(file => file.endsWith('.md'))
@@ -93,42 +93,42 @@ function findAllMarkdownFiles(): string[] {
     allFiles.push(...dataFiles);
   }
 
-  // 在当前目录中查找（排除已经在 data 目录中的文件）
+  // Search in current directory (excluding files already found in data directory)
   const currentFiles = fs.readdirSync(currentDir)
     .filter(file => file.endsWith('.md'))
     .map(file => path.join(currentDir, file))
     .filter(file => !allFiles.some(existing => path.basename(existing) === path.basename(file)));
-  
+
   allFiles.push(...currentFiles);
 
   return allFiles.sort();
 }
 
-// 渲染单个文件
+// Render single file
 async function renderSingleFile(filePath: string, theme: 'dark' | 'light', outputDir: string): Promise<void> {
   const renderer = new MarkdownRenderer({ theme });
-  
+
   try {
-    console.log(`⚡ 渲染: ${path.basename(filePath)}`);
+    console.log(`⚡ Rendering: ${path.basename(filePath)}`);
     const html = await renderer.renderFile(filePath);
-    
-    // 生成输出文件名
+
+    // Generate output filename
     const baseName = path.basename(filePath, '.md');
     const outputFileName = `${baseName}-${theme}.html`;
     const outputPath = path.join(outputDir, outputFileName);
-    
-    // 保存渲染结果
+
+    // Save render result
     await fs.promises.writeFile(outputPath, html, 'utf-8');
-    
-    // 显示文件信息
+
+    // Display file information
     const stats = await fs.promises.stat(filePath);
     const outputStats = await fs.promises.stat(outputPath);
-    
+
     console.log(`   ✅ ${outputFileName}`);
     console.log(`   📊 ${(stats.size / 1024).toFixed(2)} KB → ${(outputStats.size / 1024).toFixed(2)} KB`);
-    
+
   } catch (error) {
-    console.error(`   ❌ 渲染失败: ${error}`);
+    console.error(`   ❌ Rendering failed: ${error}`);
     throw error;
   }
 }
@@ -136,34 +136,34 @@ async function renderSingleFile(filePath: string, theme: 'dark' | 'light', outpu
 async function main() {
   const args = parseArgs();
 
-  // 显示帮助信息
+  // Show help information
   if (args.help) {
     showHelp();
     return;
   }
 
   const theme = args.theme || 'dark';
-  console.log(`🎨 使用主题: ${theme}`);
+  console.log(`🎨 Using theme: ${theme}`);
 
-  // 确保输出目录存在
+  // Ensure output directory exists
   const outputDir = path.join(__dirname, '../output');
   await fs.promises.mkdir(outputDir, { recursive: true });
 
   try {
     if (args.all) {
-      // 渲染所有文件
-      console.log(`🔍 查找所有 Markdown 文件...`);
+      // Render all files
+      console.log(`🔍 Finding all Markdown files...`);
       const allFiles = findAllMarkdownFiles();
-      
+
       if (allFiles.length === 0) {
-        console.error(`❌ 未找到任何 .md 文件`);
-        console.error(`请确保以下位置存在 Markdown 文件:`);
+        console.error(`❌ No .md files found`);
+        console.error(`Please ensure Markdown files exist in:`);
         console.error(`  - apps/render/data/`);
         console.error(`  - ${process.cwd()}/`);
         process.exit(1);
       }
 
-      console.log(`📄 找到 ${allFiles.length} 个文件:`);
+      console.log(`📄 Found ${allFiles.length} files:`);
       allFiles.forEach(file => {
         console.log(`   - ${path.relative(process.cwd(), file)}`);
       });
@@ -172,7 +172,7 @@ async function main() {
       let successCount = 0;
       let errorCount = 0;
 
-      // 渲染所有文件
+      // Render all files
       for (const filePath of allFiles) {
         try {
           await renderSingleFile(filePath, theme, outputDir);
@@ -182,22 +182,22 @@ async function main() {
         }
       }
 
-      // 显示汇总结果
-      console.log(`\n📊 渲染汇总:`);
-      console.log(`   ✅ 成功: ${successCount} 个文件`);
+      // Show summary
+      console.log(`\n📊 Render Summary:`);
+      console.log(`   ✅ Success: ${successCount} files`);
       if (errorCount > 0) {
-        console.log(`   ❌ 失败: ${errorCount} 个文件`);
+        console.log(`   ❌ Failed: ${errorCount} files`);
       }
-      console.log(`   📁 输出目录: ${outputDir}`);
-      console.log(`   🌐 在浏览器中打开 HTML 文件查看效果`);
+      console.log(`   📁 Output directory: ${outputDir}`);
+      console.log(`   🌐 Open HTML files in browser to view results`);
 
-      // 列出生成的文件
+      // List generated files
       const outputFiles = fs.readdirSync(outputDir)
         .filter(file => file.endsWith(`-${theme}.html`))
         .sort();
-      
+
       if (outputFiles.length > 0) {
-        console.log(`\n🗂️ 生成的文件:`);
+        console.log(`\n🗂️ Generated files:`);
         outputFiles.forEach(file => {
           const filePath = path.join(outputDir, file);
           const stats = fs.statSync(filePath);
@@ -206,42 +206,42 @@ async function main() {
       }
 
     } else {
-      // 渲染单个文件
+      // Render single file
       const filename = args.filename || '1';
-      console.log(`🔍 查找文件: ${filename}.md`);
+      console.log(`🔍 Finding file: ${filename}.md`);
 
       const mdPath = findMarkdownFile(filename);
       if (!mdPath) {
-        console.error(`❌ 错误: 找不到文件 "${filename}.md"`);
-        console.error(`请确保文件存在于以下位置之一:`);
+        console.error(`❌ Error: File "${filename}.md" not found`);
+        console.error(`Please ensure the file exists in one of these locations:`);
         console.error(`  - apps/render/data/${filename}.md`);
         console.error(`  - ${process.cwd()}/${filename}.md`);
-        console.error(`\n使用 --help 查看使用方法`);
-        console.error(`使用 --all 渲染所有文件`);
+        console.error(`\nUse --help to see usage`);
+        console.error(`Use --all to render all files`);
         process.exit(1);
       }
 
-      console.log(`📄 找到文件: ${mdPath}`);
+      console.log(`📄 Found file: ${mdPath}`);
       await renderSingleFile(mdPath, theme, outputDir);
-      
-      console.log(`\n✅ 渲染完成!`);
-      console.log(`🌐 在浏览器中打开查看效果`);
+
+      console.log(`\n✅ Rendering complete!`);
+      console.log(`🌐 Open in browser to view results`);
     }
 
   } catch (error) {
-    console.error('❌ 渲染过程中发生错误:', error);
+    console.error('❌ Error during rendering:', error);
     process.exit(1);
   }
 }
 
-// 处理未捕获的异常
+// Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
-  console.error('❌ 未捕获的异常:', error);
+  console.error('❌ Uncaught Exception:', error);
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ 未处理的 Promise 拒绝:', reason);
+  console.error('❌ Unhandled Promise Rejection:', reason);
   process.exit(1);
 });
 

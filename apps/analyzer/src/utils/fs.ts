@@ -10,7 +10,7 @@ export async function exsit(path: string) {
 }
 
 /**
- * 判断是否应该处理该文件/目录
+ * Check if the file/directory should be processed
  */
 export function shouldProcessFile(name: string): boolean {
   const ignoredItems = [

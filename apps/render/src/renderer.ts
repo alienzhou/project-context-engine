@@ -17,18 +17,18 @@ export class MarkdownRenderer {
       ...options
     };
 
-    // 配置 marked
+    // Configure marked
     const renderer = new marked.Renderer();
     renderer.code = (code: string, lang: string | undefined) => {
       if (lang === 'mermaid') {
-        // 为每个 mermaid 图表生成唯一ID
+        // Generate unique ID for each mermaid diagram
         const id = `mermaid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         return `<div class="mermaid-wrapper">
           <div class="mermaid-toolbar">
-            <button class="mermaid-zoom-btn" data-action="zoom-in" title="放大">🔍+</button>
-            <button class="mermaid-zoom-btn" data-action="zoom-out" title="缩小">🔍-</button>
-            <button class="mermaid-zoom-btn" data-action="zoom-reset" title="重置缩放">↻</button>
-            <button class="mermaid-zoom-btn" data-action="fullscreen" title="全屏">⛶</button>
+            <button class="mermaid-zoom-btn" data-action="zoom-in" title="Zoom In">🔍+</button>
+            <button class="mermaid-zoom-btn" data-action="zoom-out" title="Zoom Out">🔍-</button>
+            <button class="mermaid-zoom-btn" data-action="zoom-reset" title="Reset Zoom">↻</button>
+            <button class="mermaid-zoom-btn" data-action="fullscreen" title="Fullscreen">⛶</button>
           </div>
           <div class="mermaid-container">
             <div id="${id}" class="mermaid" data-zoom="1">${code}</div>
@@ -83,7 +83,7 @@ export class MarkdownRenderer {
           padding-bottom: 0.3em;
         }
         
-        /* Mermaid 包装器 - 全宽度显示 */
+        /* Mermaid wrapper - full width display */
         .mermaid-wrapper {
           margin: 24px 0;
           width: 100%;
@@ -94,7 +94,7 @@ export class MarkdownRenderer {
           overflow: hidden;
         }
         
-        /* 工具栏 */
+        /* Toolbar */
         .mermaid-toolbar {
           display: flex;
           justify-content: flex-end;
@@ -130,7 +130,7 @@ export class MarkdownRenderer {
           transform: scale(0.95);
         }
         
-        /* Mermaid 容器 - 全宽度 */
+        /* Mermaid container - full width */
         .mermaid-container {
           width: 100%;
           overflow: auto;
@@ -145,7 +145,7 @@ export class MarkdownRenderer {
           transform-origin: top left;
         }
         
-        /* Mermaid SVG 样式 */
+        /* Mermaid SVG styles */
         .mermaid svg {
           width: 100% !important;
           height: auto !important;
@@ -153,7 +153,7 @@ export class MarkdownRenderer {
           margin: 0 auto;
         }
         
-        /* 全屏模式 */
+        /* Fullscreen mode */
         .mermaid-wrapper.fullscreen {
           position: fixed;
           top: 0;
@@ -178,7 +178,7 @@ export class MarkdownRenderer {
           max-height: 100%;
         }
         
-        /* 全屏遮罩 */
+        /* Fullscreen overlay */
         .fullscreen-overlay {
           position: fixed;
           top: 0;
@@ -220,7 +220,7 @@ export class MarkdownRenderer {
           background: ${isDark ? '#2d2d2d' : '#f6f8fa'};
         }
         
-        /* 加载状态样式 */
+        /* Loading state styles */
         .mermaid.loading {
           min-height: 200px;
           display: flex;
@@ -230,10 +230,10 @@ export class MarkdownRenderer {
         }
         
         .mermaid.loading::before {
-          content: "渲染 Mermaid 图表中...";
+          content: "Rendering Mermaid diagram...";
         }
         
-        /* 响应式设计 */
+        /* Responsive design */
         @media (max-width: 768px) {
           .mermaid-toolbar {
             padding: 6px 8px;
@@ -250,7 +250,7 @@ export class MarkdownRenderer {
           }
         }
         
-        /* 滚动条样式 */
+        /* Scrollbar styles */
         .mermaid-container::-webkit-scrollbar {
           width: 8px;
           height: 8px;
@@ -274,12 +274,12 @@ export class MarkdownRenderer {
 
   private getScripts(): string {
     const mermaidTheme = this.options.theme === 'dark' ? 'dark' : 'default';
-    
+
     return `
       <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
         
-        // 配置 Mermaid
+        // Configure Mermaid
         mermaid.initialize({
           startOnLoad: false,
           theme: '${mermaidTheme}',
@@ -308,7 +308,7 @@ export class MarkdownRenderer {
           }
         });
 
-        // 缩放控制功能
+        // Zoom control functionality
         function setupZoomControls() {
           document.addEventListener('click', function(e) {
             if (!e.target.classList.contains('mermaid-zoom-btn')) return;
@@ -338,7 +338,7 @@ export class MarkdownRenderer {
             mermaidElement.dataset.zoom = currentZoom;
           });
           
-          // ESC 键退出全屏
+          // ESC key to exit fullscreen
           document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
               const fullscreenWrapper = document.querySelector('.mermaid-wrapper.fullscreen');
@@ -356,18 +356,18 @@ export class MarkdownRenderer {
             wrapper.classList.remove('fullscreen');
             document.body.style.overflow = '';
             
-            // 移除遮罩
+            // Remove overlay
             const overlay = document.querySelector('.fullscreen-overlay');
             if (overlay) {
               overlay.remove();
             }
             
-            // 更新按钮文本
+            // Update button text
             const fullscreenBtn = wrapper.querySelector('[data-action="fullscreen"]');
             fullscreenBtn.textContent = '⛶';
-            fullscreenBtn.title = '全屏';
+            fullscreenBtn.title = 'Fullscreen';
           } else {
-            // 创建遮罩
+            // Create overlay
             const overlay = document.createElement('div');
             overlay.className = 'fullscreen-overlay active';
             document.body.appendChild(overlay);
@@ -375,18 +375,18 @@ export class MarkdownRenderer {
             wrapper.classList.add('fullscreen');
             document.body.style.overflow = 'hidden';
             
-            // 更新按钮文本
+            // Update button text
             const fullscreenBtn = wrapper.querySelector('[data-action="fullscreen"]');
             fullscreenBtn.textContent = '✕';
-            fullscreenBtn.title = '退出全屏';
+            fullscreenBtn.title = 'Exit Fullscreen';
             
-            // 点击遮罩退出全屏
+            // Click overlay to exit fullscreen
             overlay.addEventListener('click', () => {
               toggleFullscreen(wrapper);
             });
           }
         }
-        // 渲染所有 Mermaid 图表
+        // Render all Mermaid diagrams
         async function renderMermaidCharts() {
           const mermaidElements = document.querySelectorAll('.mermaid');
           
@@ -395,17 +395,17 @@ export class MarkdownRenderer {
             const graphDefinition = element.textContent;
             
             try {
-              // 添加加载状态
+              // Add loading state
               element.classList.add('loading');
               
-              // 渲染图表
+              // Render diagram
               const { svg } = await mermaid.render(\`mermaid-chart-\${i}\`, graphDefinition);
               
-              // 移除加载状态并插入 SVG
+              // Remove loading state and insert SVG
               element.classList.remove('loading');
               element.innerHTML = svg;
               
-              // 确保 SVG 响应式
+              // Ensure SVG is responsive
               const svgElement = element.querySelector('svg');
               if (svgElement) {
                 svgElement.removeAttribute('height');
@@ -413,22 +413,22 @@ export class MarkdownRenderer {
                 svgElement.style.height = 'auto';
               }
             } catch (error) {
-              console.error('Mermaid 渲染错误:', error);
+              console.error('Mermaid rendering error:', error);
               element.classList.remove('loading');
               element.innerHTML = \`
                 <div style="color: #f56565; padding: 16px; text-align: center;">
-                  <strong>Mermaid 图表渲染失败</strong><br>
+                  <strong>Failed to render Mermaid diagram</strong><br>
                   <small>\${error.message}</small>
                 </div>
               \`;
             }
           }
           
-          // 设置缩放控制
+          // Set up zoom controls
           setupZoomControls();
         }
 
-        // 等待 DOM 加载完成后渲染图表
+        // Wait for DOM to load before rendering diagrams
         if (document.readyState === 'loading') {
           document.addEventListener('DOMContentLoaded', renderMermaidCharts);
         } else {
@@ -463,12 +463,12 @@ export class MarkdownRenderer {
     return this.render(markdown);
   }
 
-  // 新增：设置主题的方法
+  // New: Method to set theme
   public setTheme(theme: 'dark' | 'light'): void {
     this.options.theme = theme;
   }
 
-  // 新增：获取当前主题
+  // New: Get current theme
   public getTheme(): 'dark' | 'light' {
     return this.options.theme || 'dark';
   }

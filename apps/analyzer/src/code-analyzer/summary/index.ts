@@ -10,42 +10,42 @@ const SUPPORT_EXTS = ['.js', '.ts', '.md'];
 const logger = Logger('CodeSummary');
 
 /**
- * 判断文件内容是否为文本类型
- * @param buffer 文件内容的buffer
- * @returns 如果是文本类型返回true，否则返回false
+ * Check if file content is text type
+ * @param buffer File content buffer
+ * @returns true if text type, false otherwise
  */
 function isTextFile(buffer: Buffer): boolean {
-  // 检查文件中是否包含空字节(null bytes)
-  // 二进制文件通常包含大量的空字节或控制字符
-  // 我们检查前8192个字节，通常足够判断文件类型
+  // Check for null bytes in file
+  // Binary files typically contain many null bytes or control characters
+  // We check the first 8192 bytes, usually enough to determine file type
   const chunkSize = Math.min(8192, buffer.length);
-  
-  // 检查是否有空字节或高频率的控制字符，这些在典型文本文件中很少见
+
+  // Check for null bytes or high frequency of control characters, which are rare in typical text files
   let controlChars = 0;
   let nullBytes = 0;
-  
+
   for (let i = 0; i < chunkSize; i++) {
     const byte = buffer[i];
-    // 空字节检查
+    // Check for null bytes
     if (byte === 0) {
       nullBytes++;
-      // 如果有空字节，很可能是二进制文件
+      // If there are null bytes, likely a binary file
       if (nullBytes > 1) {
         return false;
       }
     }
-    
-    // 控制字符检查（除了常见的如换行、回车、制表符等）
+
+    // Check for control characters (except common ones like newline, carriage return, tab)
     if ((byte < 32 && ![9, 10, 13].includes(byte)) || (byte >= 127 && byte <= 159)) {
       controlChars++;
-      // 如果控制字符超过一定比例，可能是二进制文件
+      // If control characters exceed a certain ratio, might be a binary file
       if (controlChars > chunkSize * 0.1) {
         return false;
       }
     }
   }
-  
-  // 如果通过了以上检查，认为是文本文件
+
+  // If passed above checks, consider it a text file
   return true;
 }
 
@@ -101,7 +101,6 @@ export async function getAllCodeSummary(
   return result;
 }
 
-
 const summarizeDir = async (dirpath: string) => {
   const dirs = await fs.promises.readdir(dirpath);
   const mdFiles: Array<{
@@ -128,7 +127,7 @@ const summarizeDir = async (dirpath: string) => {
   const question = mdFiles.map(m => `filepath: ${m.filepath}\n\n${m.content}`).join('\n\n------------\n\n');
 
   const text = await getAIAnswer({
-    systemPrompt: `以下代码位于${dirpath}目录下，请阅读各个代码的总结文档，给出整体的总结文档。`,
+    systemPrompt: `Please read the summary documents for each code in the ${dirpath} directory and provide an overall summary document.`,
     question,
   });
 
@@ -136,32 +135,32 @@ const summarizeDir = async (dirpath: string) => {
 }
 
 /**
- * 从最深层目录开始遍历并打印
- * @param targetDir 目标目录
+ * Traverse directories from deepest to shallowest and print
+ * @param targetDir Target directory
  */
 export async function processDirectoriesDeepToShallow(targetDir: string) {
-  logger.info(`开始从深层向上遍历目录: ${targetDir}`);
-  
+  logger.info(`Starting to traverse directories from deep to shallow: ${targetDir}`);
+
   try {
-    // 使用更新后的遍历函数获取目录信息
+    // Use updated traversal function to get directory information
     const sortedDirs = await traverseDirectoriesDeepToShallow(targetDir);
-    
-    // 直接输出目录结构，从最深层到最浅层
+
+    // Output directory structure directly, from deepest to shallowest
     for (const dir of sortedDirs) {
-      // 只输出目录名和完整路径，没有任何缩进或特殊格式
-      logger.info(`${dir.name} (${dir.path}) - ${dir.depth}层`);
+      // Only output directory name and full path, no indentation or special formatting
+      logger.info(`${dir.name} (${dir.path}) - depth: ${dir.depth}`);
       const summary = await summarizeDir(dir.path);
       if (!summary) {
-        logger.warn(`无法获取目录摘要: ${dir.path}`);
+        logger.warn(`Cannot get directory summary: ${dir.path}`);
         continue;
       }
       fs.promises.writeFile(path.join(dir.path, DIR_SUMMARY_FILENAME), summary, 'utf-8');
-      logger.info(`目录摘要: ${summary}}`);
+      logger.info(`Directory summary: ${summary}}`);
     }
-    logger.info('目录遍历完成');
+    logger.info('Directory traversal completed');
     return sortedDirs.map(dir => dir.path);
   } catch (error) {
-    logger.error(`目录遍历出错: ${error}`);
+    logger.error(`Directory traversal error: ${error}`);
     return [];
   }
 }

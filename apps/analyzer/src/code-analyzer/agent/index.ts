@@ -1,8 +1,8 @@
 import { Logger } from '../../utils/log';
 import * as fs from 'node:fs';
 
-// Wiki 元数据节点接口，keyQuestions 应聚焦于 SUMMARY 中的实际技术或业务点，
-// 每个页面仅保留 3~5 个以问句形式呈现的问题
+// Wiki metadata node interface, keyQuestions should focus on actual technical or business points in SUMMARY,
+// Each page should only retain 3-5 questions presented in interrogative form
 interface WikiMetadataNode {
   title: string;
   purpose: string;
@@ -13,18 +13,18 @@ interface WikiMetadataNode {
 
 const logger = Logger('wiki-agent');
 
-const AGENT_PROMPT = (titile: string, purpose: string, quetions: string[]) => `详细分析当前代码仓库中的内容，生成一篇《${titile}》的技术分析文章，作为该仓库的wiki文档，要求如下：
-1. 文档的主要目标是: ${purpose}
-2. 语言使用中文，但遇到关键技术名词或源代码时，可直接使用原语言
-3. 给出整体架构的模块及其交互概览，可使用 mermaid 绘制技术图表
-4. 保持清晰的层次和逻辑，逐步展开说明，并在必要处加入文字解释
-5. 内容应避免模板化或空洞的描述，直接展示关键函数、类或接口的设计目的与实现方式
-6. 逐一回答以下问题，并按序号给出深入解析：
+const AGENT_PROMPT = (titile: string, purpose: string, quetions: string[]) => `Analyze the current code repository in detail and generate a technical analysis article titled "${titile}" as a wiki document for this repository, with the following requirements:
+1. The main objective of the document is: ${purpose}
+2. Provide an overview of the overall architecture modules and their interactions, using mermaid to draw technical diagrams when helpful
+3. Maintain clear hierarchy and logic, explain step by step, and add textual explanations where necessary
+4. Content should avoid templated or hollow descriptions, directly showcase the design purpose and implementation of key functions, classes, or interfaces
+5. Answer each of the following questions sequentially, providing in-depth analysis with numbered responses:
 ${quetions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
-7. 引用或分析源码时，请标注文件路径和行号，并附上简短说明
+6. When referencing or analyzing source code, please indicate file paths and line numbers, with brief explanations
+7. 使用中文回答
 
-关于参考引用的：
-1. 如果最终输出的文档参考了一些项目中的代码文件或代码片段，需要按如下格式标注：
+Regarding references:
+1. If the final document references code files or code snippets from the project, they should be annotated in the following format:
 <source>
 [1] lib/response.js (L1-L10)
 [2] lib/context.js (L11-L200)
@@ -32,85 +32,85 @@ ${quetions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
 `;
 
 /**
- * 为Wiki元数据中的每个节点生成AGENT_PROMPT
- * @param metadataPath Wiki元数据文件路径
+ * Generate AGENT_PROMPT for each node in Wiki metadata
+ * @param metadataPath Path to Wiki metadata file
  */
 export async function generateAgentPromptsForWiki(metadataPath: string): Promise<void> {
-  logger.info(`开始为Wiki元数据生成AGENT_PROMPT: ${metadataPath}`);
-  
+  logger.info(`Starting to generate AGENT_PROMPT for Wiki metadata: ${metadataPath}`);
+
   try {
-    // 读取Wiki元数据
+    // Read Wiki metadata
     const metadataContent = await fs.promises.readFile(metadataPath, 'utf-8');
     const wikiMetadata = JSON.parse(metadataContent) as WikiMetadataNode[];
-    
-    // 递归处理每个节点
+
+    // Process each node recursively
     const processNode = (node: WikiMetadataNode): void => {
-      // 为当前节点生成AGENT_PROMPT
+      // Generate AGENT_PROMPT for current node
       const { title, purpose, keyQuestions } = node;
       node.agentPrompt = AGENT_PROMPT(title, purpose, keyQuestions);
-      logger.info(`为节点 "${title}" 生成了AGENT_PROMPT`);
-      
-      // 处理子节点
+      logger.info(`Generated AGENT_PROMPT for node "${title}"`);
+
+      // Process child nodes
       if (node.children && node.children.length > 0) {
-        logger.info(`处理节点 "${title}" 的 ${node.children.length} 个子节点`);
+        logger.info(`Processing ${node.children.length} child nodes for "${title}"`);
         node.children.forEach(processNode);
       }
     };
-    
-    // 处理所有顶级节点
+
+    // Process all top-level nodes
     wikiMetadata.forEach(processNode);
-    logger.info(`完成处理 ${wikiMetadata.length} 个顶级节点`);
-    
-    // 将更新后的元数据写回文件
+    logger.info(`Completed processing ${wikiMetadata.length} top-level nodes`);
+
+    // Write updated metadata back to file
     await fs.promises.writeFile(
-      metadataPath, 
-      JSON.stringify(wikiMetadata, null, 2), 
+      metadataPath,
+      JSON.stringify(wikiMetadata, null, 2),
       'utf-8'
     );
 
     printAllAgentPrompts(metadataPath);
-    
-    logger.info(`成功更新Wiki元数据文件: ${metadataPath}`);
+
+    logger.info(`Successfully updated Wiki metadata file: ${metadataPath}`);
   } catch (error) {
-    logger.error(`为Wiki元数据生成AGENT_PROMPT时出错: ${error}`);
+    logger.error(`Error generating AGENT_PROMPT for Wiki metadata: ${error}`);
   }
 }
 
 /**
- * 输出wiki内容中所有生成的AGENT_PROMPT
- * @param metadataPath Wiki元数据文件路径
+ * Output all AGENT_PROMPTs generated in wiki content
+ * @param metadataPath Path to Wiki metadata file
  */
 async function printAllAgentPrompts(metadataPath: string): Promise<void> {
-  logger.info(`输出所有生成的AGENT_PROMPT: ${metadataPath}`);
-  
+  logger.info(`Outputting all generated AGENT_PROMPTs: ${metadataPath}`);
+
   try {
-    // 读取Wiki元数据
+    // Read Wiki metadata
     const metadataContent = await fs.promises.readFile(metadataPath, 'utf-8');
     const wikiMetadata = JSON.parse(metadataContent) as WikiMetadataNode[];
-    
-    // 递归打印每个节点的AGENT_PROMPT
+
+    // Recursively print AGENT_PROMPT for each node
     const printNodePrompt = (node: WikiMetadataNode, depth: number = 0): void => {
       const indent = '  '.repeat(depth);
-      logger.info(`${indent}节点: ${node.title}`);
-      
+      logger.info(`${indent}Node: ${node.title}`);
+
       if (node.agentPrompt) {
-        // 压缩日志中的AGENT_PROMPT显示，避免过长
+        // Compress AGENT_PROMPT display in logs to avoid excessive length
         const compressedPrompt = node.agentPrompt.substring(0, 50) + '...';
         logger.info(`${indent}AGENT_PROMPT: ${compressedPrompt}`);
       } else {
-        logger.warn(`${indent}警告: 节点 "${node.title}" 没有AGENT_PROMPT`);
+        logger.warn(`${indent}Warning: Node "${node.title}" has no AGENT_PROMPT`);
       }
-      
-      // 打印子节点的AGENT_PROMPT
+
+      // Print AGENT_PROMPT for child nodes
       if (node.children && node.children.length > 0) {
         node.children.forEach(child => printNodePrompt(child, depth + 1));
       }
     };
-    
-    // 打印所有顶级节点的AGENT_PROMPT
+
+    // Print AGENT_PROMPT for all top-level nodes
     wikiMetadata.forEach(node => printNodePrompt(node));
-    
+
   } catch (error) {
-    logger.error(`输出所有AGENT_PROMPT时出错: ${error}`);
+    logger.error(`Error outputting all AGENT_PROMPTs: ${error}`);
   }
 }

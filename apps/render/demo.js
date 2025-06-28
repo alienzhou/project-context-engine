@@ -1,25 +1,25 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-console.log('🎯 Markdown 渲染器命令行功能演示');
+console.log('🎯 Markdown Renderer CLI Feature Demo');
 console.log('=====================================\n');
 
 function runCommand(command, args, description) {
   return new Promise((resolve, reject) => {
     console.log(`📝 ${description}`);
-    console.log(`💻 执行: ${command} ${args.join(' ')}\n`);
-    
-    const child = spawn(command, args, { 
+    console.log(`💻 Execute: ${command} ${args.join(' ')}\n`);
+
+    const child = spawn(command, args, {
       stdio: 'inherit',
-      cwd: path.join(__dirname)
+      cwd: path.join(__dirname),
     });
-    
-    child.on('close', (code) => {
+
+    child.on('close', code => {
       if (code === 0) {
-        console.log(`✅ 完成\n`);
+        console.log(`✅ Complete\n`);
         resolve();
       } else {
-        console.log(`❌ 执行失败 (退出码: ${code})\n`);
+        console.log(`❌ Execution failed (exit code: ${code})\n`);
         reject(new Error(`Command failed with code ${code}`));
       }
     });
@@ -28,45 +28,48 @@ function runCommand(command, args, description) {
 
 async function demo() {
   try {
-    // 显示帮助信息
-    await runCommand('node', ['dist/index.js', '--help'], 
-      '1. 显示帮助信息');
-    
-    console.log('⏳ 等待 2 秒...\n');
+    // Show help information
+    await runCommand('node', ['dist/index.js', '--help'], '1. Show help information');
+
+    console.log('⏳ Wait for 2 seconds...\n');
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // 渲染默认文件
-    await runCommand('node', ['dist/index.js'], 
-      '2. 渲染默认文件 (1.md) 使用暗色主题');
-    
-    console.log('⏳ 等待 2 秒...\n');
+
+    // Render default file
+    await runCommand('node', ['dist/index.js'], '2. Render default file (1.md) with dark theme');
+
+    console.log('⏳ Wait for 2 seconds...\n');
     await new Promise(resolve => setTimeout(resolve, 2000));
-    // 渲染指定文件
-    await runCommand('node', ['dist/index.js', '2'], 
-      '3. 渲染指定文件 (2.md) 使用暗色主题');
-    
-    console.log('⏳ 等待 2 秒...\n');
+    // Render specified file
+    await runCommand(
+      'node',
+      ['dist/index.js', '2'],
+      '3. Render specified file (2.md) with dark theme'
+    );
+
+    console.log('⏳ Wait for 2 seconds...\n');
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // 使用浅色主题
-    await runCommand('node', ['dist/index.js', '1', '--theme', 'light'], 
-      '4. 渲染文件使用浅色主题');
-    
-    console.log('🎉 演示完成！');
-    console.log('📁 查看 apps/render/output/ 目录中的生成文件');
-    
+
+    // Use light theme
+    await runCommand(
+      'node',
+      ['dist/index.js', '1', '--theme', 'light'],
+      '4. Render file with light theme'
+    );
+
+    console.log('🎉 Demo completed!');
+    console.log('📁 Check the generated files in apps/render/output/ directory');
   } catch (error) {
-    console.error('❌ 演示过程中出现错误:', error.message);
+    console.error('❌ Error during demo:', error.message);
   }
 }
 
-// 检查是否已编译
+// Check if compiled
 const distExists = fs.existsSync('./dist/index.js');
 
 if (!distExists) {
-  console.log('⚠️  检测到项目未编译，请先运行:');
+  console.log('⚠️  Project not compiled, please run first:');
   console.log('   npm run build');
-  console.log('   然后再运行: node demo.js');
+  console.log('   then run: node demo.js');
   process.exit(1);
 }
 

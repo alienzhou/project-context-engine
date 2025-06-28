@@ -2,25 +2,25 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-console.log('🎯 测试批量渲染功能 (--all 参数)');
+console.log('🎯 Testing Batch Rendering (--all parameter)');
 console.log('===================================\n');
 
 function runCommand(command, args, description) {
   return new Promise((resolve, reject) => {
     console.log(`📝 ${description}`);
-    console.log(`💻 执行: ${command} ${args.join(' ')}\n`);
-    
-    const child = spawn(command, args, { 
+    console.log(`💻 Execute: ${command} ${args.join(' ')}\n`);
+
+    const child = spawn(command, args, {
       stdio: 'inherit',
-      cwd: path.join(__dirname)
+      cwd: path.join(__dirname),
     });
-    
-    child.on('close', (code) => {
+
+    child.on('close', code => {
       if (code === 0) {
-        console.log(`✅ 完成\n`);
+        console.log(`✅ Complete\n`);
         resolve();
       } else {
-        console.log(`❌ 执行失败 (退出码: ${code})\n`);
+        console.log(`❌ Execution failed (exit code: ${code})\n`);
         reject(new Error(`Command failed with code ${code}`));
       }
     });
@@ -29,7 +29,8 @@ function runCommand(command, args, description) {
 
 function listFiles(directory, extension = '.md') {
   try {
-    const files = fs.readdirSync(directory)
+    const files = fs
+      .readdirSync(directory)
       .filter(file => file.endsWith(extension))
       .sort();
     return files;
@@ -40,101 +41,103 @@ function listFiles(directory, extension = '.md') {
 
 async function demo() {
   try {
-    // 检查可用的 Markdown 文件
-    console.log('📋 检查可用的 Markdown 文件:');
+    // Check available Markdown files
+    console.log('📋 Checking available Markdown files:');
     const dataDir = path.join(__dirname, 'data');
     const currentDir = __dirname;
     const dataFiles = listFiles(dataDir);
     const currentFiles = listFiles(currentDir);
-    
-    console.log(`   data/ 目录: ${dataFiles.length} 个文件`);
+
+    console.log(`   data/ directory: ${dataFiles.length} files`);
     dataFiles.forEach(file => console.log(`     - ${file}`));
-    
-    console.log(`   当前目录: ${currentFiles.length} 个文件`);
+
+    console.log(`   Current directory: ${currentFiles.length} files`);
     currentFiles.forEach(file => console.log(`     - ${file}`));
-    
+
     console.log('');
-    
+
     if (dataFiles.length === 0 && currentFiles.length === 0) {
-      console.log('⚠️  没有找到 Markdown 文件，创建一个测试文件...');
-      const testContent = `# 测试文件
+      console.log('⚠️  No Markdown files found, creating a test file...');
+      const testContent = `# Test File
 
-这是一个自动生成的测试文件。
+This is an automatically generated test file.
 
-## Mermaid 图表测试
+## Mermaid Diagram Test
 
 \`\`\`mermaid
 graph LR
-    A[开始] --> B[处理]
-    B --> C[结束]
+    A[Start] --> B[Process]
+    B --> C[End]
 \`\`\`
 
-## 代码测试
+## Code Test
 
 \`\`\`javascript
 console.log('Hello, World!');
 \`\`\`
 `;
-      
+
       fs.writeFileSync(path.join(dataDir, 'test.md'), testContent, 'utf-8');
-      console.log('✅ 创建了测试文件: data/test.md\n');
+      console.log('✅ Created test file: data/test.md\n');
     }
-    
-    // 演示 --all 参数
-    await runCommand('node', ['dist/index.js', '--all'], 
-      '1. 渲染所有文件 (暗色主题)');
-    
-    console.log('⏳ 等待 2 秒...\n');
+
+    // Demo --all parameter
+    await runCommand('node', ['dist/index.js', '--all'], '1. Render all files (dark theme)');
+
+    console.log('⏳ Wait for 2 seconds...\n');
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    await runCommand('node', ['dist/index.js', '--all', '--theme', 'light'], 
-      '2. 渲染所有文件 (浅色主题)');
-    
-    console.log('⏳ 等待 2 秒...\n');
+
+    await runCommand(
+      'node',
+      ['dist/index.js', '--all', '--theme', 'light'],
+      '2. Render all files (light theme)'
+    );
+
+    console.log('⏳ Wait for 2 seconds...\n');
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // 显示输出文件
-    console.log('📁 检查输出目录:');
+
+    // Show output files
+    console.log('📁 Checking output directory:');
     const outputDir = path.join(__dirname, 'output');
     try {
-      const outputFiles = fs.readdirSync(outputDir)
+      const outputFiles = fs
+        .readdirSync(outputDir)
         .filter(file => file.endsWith('.html'))
         .sort();
-      
+
       if (outputFiles.length > 0) {
-        console.log(`   找到 ${outputFiles.length} 个输出文件:`);
+        console.log(`   Found ${outputFiles.length} output files:`);
         outputFiles.forEach(file => {
           const filePath = path.join(outputDir, file);
           const stats = fs.statSync(filePath);
           console.log(`     - ${file} (${(stats.size / 1024).toFixed(2)} KB)`);
         });
       } else {
-        console.log('   输出目录为空');
+        console.log('   Output directory is empty');
       }
     } catch (error) {
-      console.log('   输出目录不存在');
+      console.log('   Output directory does not exist');
     }
-    
-    console.log('\n🎉 批量渲染演示完成！');
-    console.log('📁 查看 apps/render/output/ 目录中的生成文件');
-    console.log('💡 提示: 可以使用 npm run render:all 快速批量渲染');
-    
+
+    console.log('\n🎉 Batch rendering demo completed!');
+    console.log('📁 Check the generated files in apps/render/output/ directory');
+    console.log('💡 Tip: Use npm run render:all for quick batch rendering');
   } catch (error) {
-    console.error('❌ 演示过程中出现错误:', error.message);
+    console.error('❌ Error during demo:', error.message);
   }
 }
 
-// 检查是否已编译
+// Check if compiled
 const distExists = fs.existsSync('./dist/index.js');
 
 if (!distExists) {
-  console.log('⚠️  检测到项目未编译，请先运行:');
+  console.log('⚠️  Project not compiled, please run first:');
   console.log('   npm run build');
-  console.log('   然后再运行: node test-all.js');
+  console.log('   then run: node test-all.js');
   process.exit(1);
 }
 
-// 确保 data 目录存在
+// Ensure data directory exists
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });

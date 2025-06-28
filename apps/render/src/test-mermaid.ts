@@ -4,38 +4,38 @@ import * as path from 'path';
 
 async function testMermaidRendering() {
   const renderer = new MarkdownRenderer({ theme: 'dark' });
-  
-  const testMarkdown = `
-# Mermaid 渲染测试
 
-## 流程图
+  const testMarkdown = `
+# Mermaid Rendering Test
+
+## Flow Chart
 \`\`\`mermaid
 graph TD
-    A[main.ts 入口] --> B[app.once('ready')]
-    B --> C[onReady函数]
+    A[main.ts Entry] --> B[app.once('ready')]
+    B --> C[onReady Function]
     C --> D[resolveNlsConfiguration]
     C --> E[mkdirpIgnoreError]
-    D --> F[startup函数]
+    D --> F[startup Function]
     E --> F
     F --> G[bootstrapESM]
     G --> H[import('./vs/code/electron-main/main.js')]
-    H --> I[CodeMain实例化和启动]
+    H --> I[CodeMain Instantiation and Start]
 \`\`\`
 
-## 时序图
+## Sequence Diagram
 \`\`\`mermaid
 sequenceDiagram
-    participant U as 用户
-    participant A as 应用
-    participant S as 服务器
+    participant U as User
+    participant A as Application
+    participant S as Server
     
-    U->>A: 发起请求
-    A->>S: 转发请求
-    S-->>A: 返回响应
-    A-->>U: 显示结果
+    U->>A: Send Request
+    A->>S: Forward Request
+    S-->>A: Return Response
+    A-->>U: Display Result
 \`\`\`
 
-## 类图
+## Class Diagram
 \`\`\`mermaid
 classDiagram
     class MarkdownRenderer {
@@ -54,7 +54,7 @@ classDiagram
     MarkdownRenderer --> RendererOptions
 \`\`\`
 
-## 普通代码块（对比测试）
+## Regular Code Block (For Comparison)
 \`\`\`typescript
 function hello(name: string): string {
   return \`Hello, \${name}!\`;
@@ -64,34 +64,34 @@ function hello(name: string): string {
 
   try {
     const html = await renderer.render(testMarkdown);
-    
-    // 确保输出目录存在
+
+    // Ensure output directory exists
     const outputDir = path.join(process.cwd(), 'apps/render/output');
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
-    
-    // 写入测试文件
+
+    // Write test file
     const outputPath = path.join(outputDir, 'mermaid-test.html');
     await fs.promises.writeFile(outputPath, html, 'utf-8');
-    
-    console.log(`✅ Mermaid 渲染测试完成！`);
-    console.log(`📁 输出文件: ${outputPath}`);
-    console.log(`🌐 在浏览器中打开查看效果`);
-    
-    // 测试浅色主题
+
+    console.log(`✅ Mermaid rendering test completed!`);
+    console.log(`📁 Output file: ${outputPath}`);
+    console.log(`🌐 Open in browser to view results`);
+
+    // Test light theme
     renderer.setTheme('light');
     const lightHtml = await renderer.render(testMarkdown);
     const lightOutputPath = path.join(outputDir, 'mermaid-test-light.html');
     await fs.promises.writeFile(lightOutputPath, lightHtml, 'utf-8');
-    console.log(`🌞 浅色主题版本: ${lightOutputPath}`);
-    
+    console.log(`🌞 Light theme version: ${lightOutputPath}`);
+
   } catch (error) {
-    console.error('❌ 测试失败:', error);
+    console.error('❌ Test failed:', error);
   }
 }
 
-// 如果直接运行此文件
+// If running this file directly
 if (require.main === module) {
   testMermaidRendering();
 }

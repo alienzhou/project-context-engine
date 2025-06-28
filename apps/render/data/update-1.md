@@ -23,7 +23,7 @@ Q：介绍下自动更新的过程
 现在让我查看自动更新相关的核心实现：
 文件查看: cli/src/update_service/self_update.rs
 Error reading file:
-File not found: /Users/zhouhongxuan/program/repos/vscode/cli/src/update_service/self_update.rs
+File not found: /Users/xxx/program/repos/vscode/cli/src/update_service/self_update.rs
 让我查找 CLI 中的更新相关目录结构：
 文件列表查询: cli/src
 现在让我查看 CLI 的自动更新实现：

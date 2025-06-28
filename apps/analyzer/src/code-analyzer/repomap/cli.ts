@@ -15,11 +15,11 @@ export async function generateRepoMapCli(options: {
   const { input, output, maxTokens = 1024, format = 'text', language } = options;
 
   try {
-    logger.info(`开始生成 repo map...`);
-    logger.info(`输入目录: ${input}`);
-    logger.info(`最大 tokens: ${maxTokens}`);
+    logger.info(`Starting to generate repo map...`);
+    logger.info(`Input directory: ${input}`);
+    logger.info(`Max tokens: ${maxTokens}`);
     if (language) {
-      logger.info(`指定语言: ${language}`);
+      logger.info(`Specified language: ${language}`);
     }
 
     const result = await generateRepoMap(input, { maxTokens, language });
@@ -28,32 +28,32 @@ export async function generateRepoMapCli(options: {
       const jsonOutput = JSON.stringify(result, null, 2);
       if (output) {
         await fs.promises.writeFile(output, jsonOutput, 'utf-8');
-        logger.info(`JSON 格式已保存到: ${output}`);
+        logger.info(`JSON format saved to: ${output}`);
       } else {
         console.log(jsonOutput);
       }
     } else {
       if (output) {
         await fs.promises.writeFile(output, result.map, 'utf-8');
-        logger.info(`Repo map 已保存到: ${output}`);
+        logger.info(`Repo map saved to: ${output}`);
       } else {
         console.log('\n=== Repository Map ===\n');
         console.log(result.map);
       }
     }
 
-    logger.info(`\n统计信息:`);
-    logger.info(`- 文件数量: ${result.files.length}`);
-    logger.info(`- 符号总数: ${result.totalSymbols}`);
-    logger.info(`- 预估 tokens: ${result.estimatedTokens}`);
+    logger.info(`\nStatistics:`);
+    logger.info(`- Number of files: ${result.files.length}`);
+    logger.info(`- Total symbols: ${result.totalSymbols}`);
+    logger.info(`- Estimated tokens: ${result.estimatedTokens}`);
 
   } catch (error) {
-    logger.error('生成 repo map 失败:', error);
+    logger.error('Failed to generate repo map:', error);
     throw error;
   }
 }
 
-// 获取支持的语言列表
+// Get list of supported languages
 function getSupportedLanguages(): string[] {
   return [
     'javascript', 'typescript', 'python', 'java', 'kotlin', 'cpp', 'c',
@@ -62,7 +62,7 @@ function getSupportedLanguages(): string[] {
   ];
 }
 
-// 解析命令行参数
+// Parse command line arguments
 function parseArgs(args: string[]): {
   input?: string;
   output?: string;
@@ -94,29 +94,29 @@ function parseArgs(args: string[]): {
   return result;
 }
 
-// 显示帮助信息
+// Display help information
 function showHelp() {
   console.log(`
-使用方法: node cli.js <input-dir> [选项]
+Usage: node cli.js <input-dir> [options]
 
-选项:
-  -l, --language <lang>     指定要分析的语言 (可选)
-  -o, --output <file>       输出文件路径 (可选)
-  -t, --max-tokens <num>    最大 token 数量 (默认: 1024)
-  -f, --format <format>     输出格式: text | json (默认: text)
-  -h, --help                显示帮助信息
+Options:
+  -l, --language <lang>     Specify language to analyze (optional)
+  -o, --output <file>       Output file path (optional)
+  -t, --max-tokens <num>    Maximum number of tokens (default: 1024)
+  -f, --format <format>     Output format: text | json (default: text)
+  -h, --help               Show help information
 
-支持的语言:
+Supported languages:
   ${getSupportedLanguages().join(', ')}
 
-示例:
-  node cli.js ./src                           # 分析所有支持的语言
-  node cli.js ./src --language python        # 只分析 Python 文件
-  node cli.js ./src -l typescript -o map.md  # 只分析 TypeScript 并保存到文件
+Examples:
+  node cli.js ./src                           # Analyze all supported languages
+  node cli.js ./src --language python         # Only analyze Python files
+  node cli.js ./src -l typescript -o map.md   # Only analyze TypeScript and save to file
 `);
 }
 
-// 如果直接运行此脚本
+// If running this script directly
 if (require.main === module) {
   const args = process.argv.slice(2);
   const options = parseArgs(args);
@@ -127,24 +127,24 @@ if (require.main === module) {
   }
 
   if (!options.input) {
-    console.error('错误: 请指定输入目录');
+    console.error('Error: Please specify input directory');
     showHelp();
     process.exit(1);
   }
 
-  // 验证语言参数
+  // Validate language parameter
   if (options.language) {
     const supportedLanguages = getSupportedLanguages();
     if (!supportedLanguages.includes(options.language)) {
-      console.error(`错误: 不支持的语言 "${options.language}"`);
-      console.error(`支持的语言: ${supportedLanguages.join(', ')}`);
+      console.error(`Error: Unsupported language "${options.language}"`);
+      console.error(`Supported languages: ${supportedLanguages.join(', ')}`);
       process.exit(1);
     }
   }
 
-  // 验证格式参数
+  // Validate format parameter
   if (options.format && !['text', 'json'].includes(options.format)) {
-    console.error('错误: 格式必须是 text 或 json');
+    console.error('Error: Format must be text or json');
     process.exit(1);
   }
 
@@ -156,10 +156,10 @@ if (require.main === module) {
 
   generateRepoMapCli({ input, output, maxTokens, format, language })
     .then(() => {
-      console.log('✅ 完成');
+      console.log('✅ Done');
     })
     .catch(error => {
-      console.error('❌ 失败:', error.message);
+      console.error('❌ Failed:', error.message);
       process.exit(1);
     });
 }

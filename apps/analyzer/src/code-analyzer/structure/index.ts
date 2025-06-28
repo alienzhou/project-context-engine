@@ -20,8 +20,8 @@ interface SummaryNode {
 }
 
 /**
- * 过滤不需要处理的文件或目录
- * @param name 文件或目录名称
+ * Filter files or directories that should not be processed
+ * @param name File or directory name
  */
 function shouldProcess(name: string): boolean {
   const ignoredItems = [
@@ -40,36 +40,36 @@ function shouldProcess(name: string): boolean {
 }
 
 /**
- * 递归扫描目录，构建文件树结构
- * @param dirPath 要扫描的目录路径
- * @returns 文件树结构
+ * Recursively scan directory to build file tree structure
+ * @param dirPath Directory path to scan
+ * @returns File tree structure
  */
 async function buildFileTree(dirPath: string, summaryFiles: SummaryNode[], depth = 0): Promise<FileNode> {
   const baseName = path.basename(dirPath);
-  
+
   const node: FileNode = {
     type: 'directory',
     name: baseName,
     path: dirPath,
     children: [],
   };
-  
+
   try {
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
-    
-    // 排序：先目录，后文件，按字母顺序
+
+    // Sort: directories first, then files, alphabetically
     const sortedEntries = entries.sort((a, b) => {
       if (a.isDirectory() && !b.isDirectory()) return -1;
       if (!a.isDirectory() && b.isDirectory()) return 1;
       return a.name.localeCompare(b.name);
     });
-    
+
     for (const entry of sortedEntries) {
       const entryPath = path.join(dirPath, entry.name);
-      
-      // 忽略不需要处理的文件或目录
+
+      // Skip files or directories that should not be processed
       if (!shouldProcess(entry.name)) continue;
-      
+
       if (entry.isDirectory()) {
         const childTree = await buildFileTree(entryPath, summaryFiles, depth + 1);
         node.children!.push(childTree);
@@ -89,91 +89,91 @@ async function buildFileTree(dirPath: string, summaryFiles: SummaryNode[], depth
         });
       }
     }
-    
+
     return node;
   } catch (error) {
-    logger.error(`读取目录 ${dirPath} 时出错:`, error);
+    logger.error(`Error reading directory ${dirPath}:`, error);
     return node;
   }
 }
 
 /**
- * 生成树形结构的字符串表示
- * @param node 文件树节点
- * @param prefix 每行的前缀字符串（用于缩进）
- * @param isLast 是否是父节点的最后一个子节点
- * @returns 树形结构的字符串表示
+ * Generate string representation of tree structure
+ * @param node File tree node
+ * @param prefix Prefix string for each line (for indentation)
+ * @param isLast Whether this is the last child of its parent
+ * @returns String representation of tree structure
  */
 function generateTreeString(node: FileNode, prefix: string = '', isLast: boolean = true): string {
   let result = '';
-  
-  // 添加当前节点
+
+  // Add current node
   const marker = isLast ? '└── ' : '├── ';
   const nodeName = node.name;
   result += `${prefix}${marker}${nodeName}\n`;
-  
-  // 为子节点准备新的前缀
+
+  // Prepare new prefix for children
   const childPrefix = prefix + (isLast ? '    ' : '│   ');
-  
-  // 递归处理子节点
+
+  // Recursively process children
   if (node.children && node.children.length > 0) {
     const lastIndex = node.children.length - 1;
-    
+
     for (let i = 0; i < node.children.length; i++) {
       const child = node.children[i];
       const isChildLast = i === lastIndex;
       result += generateTreeString(child, childPrefix, isChildLast);
     }
   }
-  
+
   return result;
 }
 
 /**
- * 遍历项目目录，以树形结构输出，并找出所有SUMMARY.md文件
- * @param dirpath 目标目录路径
- * @returns 包含树形结构字符串和SUMMARY.md文件路径的对象
+ * Traverse project directory, output tree structure, and find all SUMMARY.md files
+ * @param dirpath Target directory path
+ * @returns Object containing tree structure string and SUMMARY.md file paths
  */
 export async function listProject(dirpath: string, maxCount = 50): Promise<{
   treeString: string;
   summaryFiles: SummaryNode[];
   text: string;
 }> {
-  logger.info(`开始扫描项目目录: ${dirpath}`);
+  logger.info(`Starting to scan project directory: ${dirpath}`);
   const summaryFiles: SummaryNode[] = [];
-  
+
   try {
-    // 构建文件树
+    // Build file tree
     const fileTree = await buildFileTree(dirpath, summaryFiles);
-    
-    // 生成树形结构字符串
+
+    // Generate tree structure string
     const rootDir = path.basename(dirpath);
     const treeString = `${rootDir}\n${generateTreeString(fileTree, '', true).replace(`└── ${rootDir}\n`, '')}`;
 
     summaryFiles.sort((a, b) => a.depth - b.depth);
-    
-    // 打印树形结构
-    logger.info('目录树形结构:');
+
+    // Print tree structure
+    logger.info('Directory tree structure:');
     logger.info(`\n${treeString}`);
-    
-    // 打印找到的SUMMARY.md文件
-    logger.info(`找到 ${summaryFiles.length} 个 SUMMARY.md 文件:`);
+
+    // Print found SUMMARY.md files
+    logger.info(`Found ${summaryFiles.length} SUMMARY.md files:`);
     summaryFiles.forEach((file, index) => {
-      logger.info(`${index + 1}. ${file.filepath} (${file.depth}层)`);
+      logger.info(`${index + 1}. ${file.filepath} (depth: ${file.depth})`);
     });
 
     const text = await getAIAnswer({
-      systemPrompt: `你是一个专业的代码仓库的分析师，我会给你提供项目的原始文件/目录结构，以及对应目录的总结文档。
+      systemPrompt: `You are a professional code repository analyst. I will provide you with the project's original file/directory structure and corresponding directory summary documents.
 
-你需要根据这些信息，总结该项目的核心业务功能，并给出针对该项目创建一个wiki站点，给出wiki的大纲和目录。具体要求如下：
-1. 项目wiki的完整结构
-2. 给出每个wiki项目的title（标题）、purpose（这个页面的主要用途）、keyQuestions（这个页面要回答的关键问题/技术点/业务功能）。keyQuestions必须结合SUMMARY中出现的具体技术或业务内容，并以直接的问句形式给出
-3. 关注项目**核心源码**相关的实现，而不是一些代码构建、部署、测试、lint等无关的文件
-4. 为代码构建、部署、测试、lint等和核心业务逻辑实现无关的文件，生成一个单独的简单章节
-5. **一定**不要受到原来项目文件结构的影响，而是通过分析项目内容，进行逻辑整合，抽取核心概念
-6. 每个页面的keyQuestions控制在3~5个，避免泛泛而谈或与内容无关的陈述
+Based on this information, you need to summarize the project's core business functionality and create an outline for a wiki site for this project. Specific requirements are:
+1. Complete structure of the project wiki
+2. Provide title, purpose, and keyQuestions for each wiki page. keyQuestions must be based on specific technical or business content appearing in the SUMMARY and be presented in direct question form
+3. Focus on the implementation of project core source code, not files related to code building, deployment, testing, linting, etc.
+4. Create a separate simple chapter for files related to code building, deployment, testing, linting, etc. that are not related to core business logic implementation
+5. DO NOT be influenced by the original project file structure, but analyze project content, integrate logically, and extract core concepts
+6. Control keyQuestions to 3-5 per page, avoid general statements or statements unrelated to content
 
-输出格式的示例如下：
+Output format example:
 [
   {
     "title": "Express.js Overview",
@@ -204,7 +204,7 @@ export async function listProject(dirpath: string, maxCount = 50): Promise<{
         "purpose": "This section explains the Express.js Request object, which represents the incoming HTTP request and provides methods and properties to access and manipulate request data.",
         "keyQuestions": [
           "Which properties and methods does the req object expose to access and manipulate incoming HTTP request data?",
-          "What is the Express.js Request Object, and how does it extend Node.js’s native http.IncomingMessage?", 
+          "What is the Express.js Request Object, and how does it extend Node.js's native http.IncomingMessage?", 
         ],
       },
       {
@@ -212,7 +212,7 @@ export async function listProject(dirpath: string, maxCount = 50): Promise<{
         "purpose": "This section explains the Express.js Response object, which represents the HTTP response and provides methods and properties to send responses back to the client.",
         "keyQuestions": [
           "Which helper methods and properties does the res object provide for sending content (e.g., HTML, JSON, files), manipulating headers, managing cookies, performing redirects, and rendering views? ",
-          "What is the Express.js Response object, and how does it extend Node.js’s native http.ServerResponse? ",
+          "What is the Express.js Response object, and how does it extend Node.js's native http.ServerResponse? ",
         ],
       },
       {
@@ -235,16 +235,16 @@ ${treeString}
 ${summaryFiles.slice(0, maxCount).map(s => `filepath: ${s.filepath}\n${s.content}`).join('\n\n------------\n\n')}
 </summary>`,
     });
-    
+
     return {
       treeString,
       summaryFiles,
       text,
     };
   } catch (error) {
-    logger.error(`扫描项目目录时出错: ${error}`);
+    logger.error(`Error scanning project directory: ${error}`);
     return {
-      treeString: `无法扫描目录 ${dirpath}: ${error}`,
+      treeString: `Cannot scan directory ${dirpath}: ${error}`,
       summaryFiles: [],
       text: '',
     };

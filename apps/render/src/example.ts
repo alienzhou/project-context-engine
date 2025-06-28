@@ -2,65 +2,65 @@ import { MarkdownRenderer } from './renderer';
 import * as path from 'path';
 
 async function example() {
-  // 创建渲染器实例
+  // Create renderer instance
   const renderer = new MarkdownRenderer({
     theme: 'dark'
   });
 
-  // 示例 1: 渲染包含 Mermaid 的 Markdown 字符串
+  // Example 1: Render Markdown string containing Mermaid
   const markdownContent = `
-# 项目架构文档
+# Project Architecture Documentation
 
-## 系统流程
+## System Flow
 \`\`\`mermaid
 graph TD
-    A[用户请求] --> B{身份验证}
-    B -->|成功| C[处理请求]
-    B -->|失败| D[返回错误]
-    C --> E[查询数据库]
-    E --> F[生成响应]
-    F --> G[返回结果]
+    A[User Request] --> B{Authentication}
+    B -->|Success| C[Process Request]
+    B -->|Failure| D[Return Error]
+    C --> E[Query Database]
+    E --> F[Generate Response]
+    F --> G[Return Result]
 \`\`\`
 
-## API 时序图
+## API Sequence Diagram
 \`\`\`mermaid
 sequenceDiagram
-    participant C as 客户端
-    participant API as API服务
-    participant DB as 数据库
+    participant C as Client
+    participant API as API Service
+    participant DB as Database
     
     C->>API: POST /api/data
-    API->>DB: 查询数据
-    DB-->>API: 返回结果
-    API-->>C: JSON响应
+    API->>DB: Query Data
+    DB-->>API: Return Result
+    API-->>C: JSON Response
 \`\`\`
 `;
 
   try {
     const html = await renderer.render(markdownContent);
-    console.log('✅ Markdown 渲染成功');
+    console.log('✅ Markdown rendering successful');
     
-    // 示例 2: 从文件渲染
+    // Example 2: Render from file
     const testFilePath = path.join(__dirname, '../data/1.md');
     const fileHtml = await renderer.renderFile(testFilePath);
-    console.log('✅ 文件渲染成功');
+    console.log('✅ File rendering successful');
     
-    // 示例 3: 切换主题
+    // Example 3: Switch theme
     renderer.setTheme('light');
     const lightHtml = await renderer.render(markdownContent);
-    console.log('✅ 浅色主题渲染成功');
+    console.log('✅ Light theme rendering successful');
     
-    console.log('当前主题:', renderer.getTheme());
+    console.log('Current theme:', renderer.getTheme());
     
   } catch (error) {
-    console.error('❌ 渲染失败:', error);
+    console.error('❌ Rendering failed:', error);
   }
 }
 
-// 导出示例函数
+// Export example function
 export { example };
 
-// 如果直接运行此文件
+// If running this file directly
 if (require.main === module) {
   example();
 }

@@ -5,19 +5,19 @@ import Logger from './log';
 const logger = Logger('DirectoryTraverser');
 
 /**
- * 用于存储目录信息的接口
+ * Interface for storing directory information
  */
 interface DirectoryInfo {
-  name: string;       // 目录名称
-  path: string;       // 完整路径
-  depth: number;      // 深度级别
+  name: string;       // Directory name
+  path: string;       // Full path
+  depth: number;      // Depth level
   children?: DirectoryInfo[];
 }
 
 /**
- * 过滤不需要处理的目录
- * @param dirName 目录名称
- * @returns 是否应该处理该目录
+ * Filter directories that should not be processed
+ * @param dirName Directory name
+ * @returns Whether the directory should be processed
  */
 function shouldProcessDirectory(dirName: string): boolean {
   const ignoredDirs = [
@@ -39,9 +39,9 @@ function shouldProcessDirectory(dirName: string): boolean {
 }
 
 /**
- * 扫描目录结构并计算每个目录的深度
- * @param dirPath 要扫描的根目录路径
- * @returns 包含目录结构和深度信息的对象
+ * Scan directory structure and calculate depth for each directory
+ * @param dirPath Root directory path to scan
+ * @returns Object containing directory structure and depth information
  */
 export async function scanDirectoryStructure(dirPath: string, depth: number = 0): Promise<DirectoryInfo> {
   const rootDirInfo: DirectoryInfo = {
@@ -53,7 +53,7 @@ export async function scanDirectoryStructure(dirPath: string, depth: number = 0)
 
   try {
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       if (entry.isDirectory() && shouldProcessDirectory(entry.name)) {
         const childDirPath = path.join(dirPath, entry.name);
@@ -62,7 +62,7 @@ export async function scanDirectoryStructure(dirPath: string, depth: number = 0)
         rootDirInfo.children?.push(childInfo);
       }
     }
-    
+
     return rootDirInfo;
   } catch (error) {
     logger.error(`Error scanning directory ${dirPath}: ${error}`);
@@ -71,33 +71,33 @@ export async function scanDirectoryStructure(dirPath: string, depth: number = 0)
 }
 
 /**
- * 扁平化目录结构并按深度排序
- * @param dirInfo 目录信息对象
- * @returns 按深度排序的目录列表（从深到浅）
+ * Flatten directory structure and sort by depth
+ * @param dirInfo Directory information object
+ * @returns List of directories sorted by depth (deep to shallow)
  */
 export function flattenAndSortByDepth(dirInfo: DirectoryInfo): DirectoryInfo[] {
   const result: DirectoryInfo[] = [];
-  
+
   function traverse(info: DirectoryInfo) {
     result.push(info);
-    
+
     if (info.children && info.children.length > 0) {
       for (const child of info.children) {
         traverse(child);
       }
     }
   }
-  
+
   traverse(dirInfo);
-  
-  // 按深度从大到小排序（从深层到浅层）
+
+  // Sort by depth from high to low (deep to shallow)
   return result.sort((a, b) => b.depth - a.depth);
 }
 
 /**
- * 获取目录结构中最大的深度值
- * @param dirs 目录信息数组
- * @returns 最大深度值
+ * Get maximum depth value from directory structure
+ * @param dirs Array of directory information
+ * @returns Maximum depth value
  */
 function getMaxDepth(dirs: DirectoryInfo[]): number {
   if (dirs.length === 0) return 0;
@@ -105,19 +105,19 @@ function getMaxDepth(dirs: DirectoryInfo[]): number {
 }
 
 /**
- * 从最深层目录开始向上遍历目录结构
- * @param targetDir 目标目录的路径
- * @returns 从深到浅排序的目录信息对象数组
+ * Traverse directory structure from deepest to shallowest
+ * @param targetDir Target directory path
+ * @returns Array of directory information objects sorted from deep to shallow
  */
 export async function traverseDirectoriesDeepToShallow(targetDir: string): Promise<DirectoryInfo[]> {
-  logger.debug(`开始扫描目录结构: ${targetDir}`);
-  
-  // 1. 扫描目录结构
+  logger.debug(`Starting to scan directory structure: ${targetDir}`);
+
+  // 1. Scan directory structure
   const dirStructure = await scanDirectoryStructure(targetDir);
-  
-  // 2. 扁平化并按深度排序
+
+  // 2. Flatten and sort by depth
   const sortedDirs = flattenAndSortByDepth(dirStructure);
-  logger.debug(`扫描完成，共找到 ${sortedDirs.length} 个目录`);
-  
+  logger.debug(`Scan completed, found ${sortedDirs.length} directories`);
+
   return sortedDirs;
 }

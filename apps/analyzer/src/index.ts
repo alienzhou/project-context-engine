@@ -1,5 +1,5 @@
 /**
- * Analyzer 应用入口点
+ * Analyzer Application Entry Point
  */
 import Logger, { LogLevel } from './utils/log';
 import * as path from 'node:path';
@@ -14,13 +14,12 @@ import { generateRepoMap } from './code-analyzer/repomap';
 
 const logger = Logger('main', {
   level: LogLevel.DEBUG,
-  maxDays: 7,  // 只保留7天日志
+  maxDays: 7,  // Keep logs for 7 days only
 });
 
 const PROJECT_BASE = path.resolve(__dirname, '..');
 
-const REPO = '/Users/zhouhongxuan/program/repos/web-highlighter';
-// const REPO = '/Users/zhouhongxuan/program/kuaishou/kinsight/llm-server';
+const REPO = 'xxx';
 const PROCESSED_BASE = path.resolve(PROJECT_BASE, 'processed');
 
 async function main() {
@@ -30,9 +29,9 @@ async function main() {
   const targetAssetsDirpaht = path.join(targetDirpath, 'assets');
   const repoMapFilepath = path.join(targetDirpath, 'repomap.md');
 
-  // 生成 assets 目录
+  // Generate assets directory
   process.stdout.write('\n\n');
-  logger.info(`[Step 1] 开始生成 assets 目录: ${targetAssetsDirpaht}`);
+  logger.info(`[Step 1] Start generating assets directory: ${targetAssetsDirpaht}`);
   // remove dir
   if (await exsit(targetAssetsDirpaht)) {
     await fs.promises.rmdir(targetAssetsDirpaht, { recursive: true });
@@ -40,13 +39,13 @@ async function main() {
   await fs.promises.mkdir(targetAssetsDirpaht, { recursive: true });
   process.stdout.write('\n\n\n');
 
-  // 进行代码总结
+  // Perform code summary
   process.stdout.write('\n\n');
-  logger.info(`[Step 2] 开始进行代码总结: ${REPO}`);
+  logger.info(`[Step 2] Start code summarization: ${REPO}`);
   await getAllCodeSummary(REPO, async (filepath, content) => {
     const relativePath = path.relative(REPO, filepath);
     const targetPath = path.join(targetAssetsDirpaht, relativePath);
-    
+
     logger.info(`Processing ${filepath}, target: ${targetPath}`);
     const parsed = path.parse(targetPath);
     await fs.promises.mkdir(parsed.dir, { recursive: true });
@@ -60,50 +59,50 @@ async function main() {
   });
   process.stdout.write('\n\n\n');
 
-  // 先处理目录结构
+  // Process directory structure
   process.stdout.write('\n\n');
-  logger.info(`[Step 3] 开始处理目录结构: ${targetAssetsDirpaht}`);
+  logger.info(`[Step 3] Start processing directory structure: ${targetAssetsDirpaht}`);
   await processDirectoriesDeepToShallow(targetAssetsDirpaht);
   process.stdout.write('\n\n\n');
-  
-  // 生成树形结构并查找SUMMARY.md文件
+
+  // Generate tree structure and find SUMMARY.md file
   process.stdout.write('\n\n');
-  logger.info(`[Step 4] 开始生成树形结构: ${targetAssetsDirpaht}`);
+  logger.info(`[Step 4] Start generating tree structure: ${targetAssetsDirpaht}`);
   const { text } = await listProject(targetAssetsDirpaht);
   logger.info(`Project Summary: ${text}`);
   process.stdout.write('\n\n\n');
 
-  // 写入最终wiki文件
+  // Write final wiki file
   process.stdout.write('\n\n');
-  logger.info(`[Step 5] 开始写入最终wiki文件: ${wikiFilepath}`);
+  logger.info(`[Step 5] Start writing final wiki file: ${wikiFilepath}`);
   fs.promises.writeFile(wikiFilepath, text, 'utf-8');
 
   process.stdout.write('\n\n\n');
-  logger.info(`[Step 6] 创建页面的生成词`);
+  logger.info(`[Step 6] Create page generation prompts`);
   generateAgentPromptsForWiki(wikiFilepath);
 
-  // 新增：生成 Repository Map
+  // New: Generate Repository Map
   process.stdout.write('\n\n');
-  logger.info(`[Step 7] 开始生成 Repository Map: ${REPO}`);
+  logger.info(`[Step 7] Start generating Repository Map: ${REPO}`);
   try {
     const repoMapResult = await generateRepoMap(REPO, {
-      maxTokens: 2048, // 可以根据需要调整
+      maxTokens: 2048, // Can be adjusted as needed
       includeTypes: true,
       includeVariables: false,
       minImportance: 0.5,
     });
-    
-    // 保存 repo map
+
+    // Save repo map
     await fs.promises.writeFile(repoMapFilepath, repoMapResult.map, 'utf-8');
-    logger.info(`Repository Map 已保存: ${repoMapFilepath}`);
-    logger.info(`统计: ${repoMapResult.files.length} 文件, ${repoMapResult.totalSymbols} 符号, ${repoMapResult.estimatedTokens} tokens`);
-    
-    // 也可以保存详细的 JSON 数据
+    logger.info(`Repository Map saved: ${repoMapFilepath}`);
+    logger.info(`Statistics: ${repoMapResult.files.length} files, ${repoMapResult.totalSymbols} symbols, ${repoMapResult.estimatedTokens} tokens`);
+
+    // Also save detailed JSON data
     const repoMapJsonPath = path.join(targetDirpath, 'repomap.json');
     await fs.promises.writeFile(repoMapJsonPath, JSON.stringify(repoMapResult, null, 2), 'utf-8');
-    
+
   } catch (error) {
-    logger.error('生成 Repository Map 失败:', error);
+    logger.error('Failed to generate Repository Map:', error);
   }
   process.stdout.write('\n\n\n');
 }
