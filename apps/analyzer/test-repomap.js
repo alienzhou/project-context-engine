@@ -6,10 +6,10 @@ async function test() {
 
   try {
     const result = await generateRepoMap('../../test-multilang', {
-      maxTokens: 2048,
+      maxTokens: 4096,
       includeTypes: true,
       includeVariables: false,
-      minImportance: 0.1,
+      minImportance: 0.05,
     });
 
     console.log('📊 统计信息:');
