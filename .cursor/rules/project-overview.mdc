@@ -1,0 +1,39 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Project Context Engine 项目总览
+
+这是一个基于 AI 的项目上下文分析引擎，采用 **Vibe Coding** 开发方式构建。
+
+## 核心功能
+
+### 🔍 代码分析器 (Analyzer)
+- **主要入口**: [apps/analyzer/src/index.ts](mdc:apps/analyzer/src/index.ts)
+- **核心功能**: 智能代码分析、自动文档生成、Repository Map 创建
+- **处理流程**: 代码读取 → AI 分析 → 生成文档 → 输出到 `processed` 目录
+- **支持语言**: TypeScript、JavaScript、Python、Java、Go、C++ 等
+
+### 🎨 Markdown 渲染器 (Render)
+- **主要入口**: [apps/render/src/index.ts](mdc:apps/render/src/index.ts)
+- **核心功能**: Markdown 到 HTML 的高质量渲染，支持 Mermaid 图表
+- **输入数据**: [apps/render/data/](mdc:apps/render/data) 目录下的 Markdown 文件
+
+## 项目结构
+
+- **monorepo 管理**: 使用 [pnpm-workspace.yaml](mdc:pnpm-workspace.yaml) 配置
+- **共享代码**: [packages/common/](mdc:packages/common) 包含可复用逻辑
+- **测试用例**: [test-multilang/](mdc:test-multilang) 提供多语言代码示例
+- **配置文件**: 
+  - [package.json](mdc:package.json) - 项目根配置
+  - [tsconfig.base.json](mdc:tsconfig.base.json) - TypeScript 基础配置
+
+## 技术栈
+
+- **语言**: TypeScript + Node.js (>=16.0.0)
+- **包管理**: pnpm@10.11.0 workspace
+- **AI 集成**: Amazon Bedrock, Azure AI Services
+- **解析引擎**: Tree-sitter
+- **构建工具**: tsup
+- **代码质量**: ESLint + Prettier

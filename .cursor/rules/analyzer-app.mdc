@@ -1,0 +1,85 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 代码分析器应用规则
+
+## 📊 核心架构
+
+代码分析器位于 [apps/analyzer/](mdc:apps/analyzer)，主要负责智能代码分析和文档生成。
+
+### 主要模块
+
+#### 🎯 主入口 
+- **文件**: [apps/analyzer/src/index.ts](mdc:apps/analyzer/src/index.ts)
+- **功能**: 协调整个分析流程，包含 7 个主要步骤
+- **输出**: 分析结果保存到 `processed/` 目录
+
+#### 🔍 核心分析模块
+位于 [apps/analyzer/src/code-analyzer/](mdc:apps/analyzer/src/code-analyzer)：
+
+1. **代理模块** [agent/](mdc:apps/analyzer/src/code-analyzer/agent)
+   - AI 代理功能，生成智能提示词
+
+2. **解析器** [parser/](mdc:apps/analyzer/src/code-analyzer/parser)
+   - 代码语法解析，使用 Tree-sitter
+   - HTML 工具函数在 [html_utils.ts](mdc:apps/analyzer/src/code-analyzer/parser/html_utils.ts)
+
+3. **代码阅读** [reading/](mdc:apps/analyzer/src/code-analyzer/reading)
+   - 智能代码理解和解释
+
+4. **仓库映射** [repomap/](mdc:apps/analyzer/src/code-analyzer/repomap)
+   - 生成项目的符号映射图
+   - CLI 工具在 [cli.ts](mdc:apps/analyzer/src/code-analyzer/repomap/cli.ts)
+
+5. **结构分析** [structure/](mdc:apps/analyzer/src/code-analyzer/structure)
+   - 项目结构树生成
+
+6. **代码总结** [summary/](mdc:apps/analyzer/src/code-analyzer/summary)
+   - 自动生成代码文档和总结
+
+#### 🛠 工具模块
+位于 [apps/analyzer/src/utils/](mdc:apps/analyzer/src/utils)：
+- **AI 工具**: [ai.ts](mdc:apps/analyzer/src/utils/ai.ts) - AI 服务集成
+- **日志系统**: [log.ts](mdc:apps/analyzer/src/utils/log.ts) - 结构化日志
+- **文件系统**: [fs.ts](mdc:apps/analyzer/src/utils/fs.ts) - 文件操作工具
+- **目录遍历**: [directoryTraverser.ts](mdc:apps/analyzer/src/utils/directoryTraverser.ts)
+- **常量定义**: [const.ts](mdc:apps/analyzer/src/utils/const.ts)
+
+## 🔄 分析流程
+
+分析器按以下步骤处理代码：
+
+1. **生成 assets 目录** - 准备输出目录
+2. **代码总结** - 逐文件进行 AI 分析
+3. **目录结构处理** - 从深到浅处理目录层级
+4. **树形结构生成** - 创建项目结构概览
+5. **Wiki 文件写入** - 保存最终分析结果
+6. **生成代理提示词** - 为后续 AI 交互准备
+7. **Repository Map** - 创建符号映射图
+
+## 📝 类型定义
+
+核心类型在 [apps/analyzer/src/code-analyzer/type.ts](mdc:apps/analyzer/src/code-analyzer/type.ts)：
+
+```typescript
+export type CodeNodeInfo = {
+  fullText: string;    // 完整代码文本
+  signature: string;   // 代码签名
+  filePath: string;    // 文件路径
+}
+```
+
+## 🧪 测试和调试
+
+- **RepoMap 测试**: 运行 [test-repomap.js](mdc:apps/analyzer/test-repomap.js)
+- **多语言测试**: 使用 [test-multilang/](mdc:test-multilang) 目录下的样例
+- **输出检查**: 查看 `processed/` 目录下的生成文件
+
+## ⚙️ 配置
+
+- **包配置**: [apps/analyzer/package.json](mdc:apps/analyzer/package.json)
+- **TypeScript**: [apps/analyzer/tsconfig.json](mdc:apps/analyzer/tsconfig.json)
+- **构建配置**: [apps/analyzer/tsup.config.ts](mdc:apps/analyzer/tsup.config.ts)
+- **目标仓库**: 在 [index.ts](mdc:apps/analyzer/src/index.ts) 中修改 `REPO` 变量

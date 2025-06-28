@@ -1,0 +1,134 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Markdown 渲染器应用规则
+
+## 🎨 渲染器概览
+
+Markdown 渲染器位于 [apps/render/](mdc:apps/render)，专门负责将 Markdown 文件转换为高质量的 HTML 输出。
+
+### 核心功能
+- **Markdown 渲染**: 高质量的 Markdown 到 HTML 转换
+- **Mermaid 支持**: 集成图表和流程图渲染
+- **主题切换**: 支持明暗两种主题模式
+- **批量处理**: 同时处理多个 Markdown 文件
+
+## 📁 项目结构
+
+### 主要文件
+- **主入口**: [apps/render/src/index.ts](mdc:apps/render/src/index.ts)
+- **渲染器**: [apps/render/src/renderer.ts](mdc:apps/render/src/renderer.ts)
+- **示例文件**: [apps/render/src/example.ts](mdc:apps/render/src/example.ts)
+- **Mermaid 测试**: [apps/render/src/test-mermaid.ts](mdc:apps/render/src/test-mermaid.ts)
+
+### 数据目录
+[apps/render/data/](mdc:apps/render/data) 包含待渲染的 Markdown 文件：
+- **扩展组件示例**: `extcom-*.md` 文件
+- **启动指南**: `startup-*.md` 文件  
+- **更新日志**: `update-*.md` 文件
+- **Mermaid 演示**: [mermaid-demo.md](mdc:apps/render/data/mermaid-demo.md)
+
+### 脚本目录
+[apps/render/scripts/](mdc:apps/render/scripts) 包含批处理脚本：
+- **批量渲染**: [render-examples.sh](mdc:apps/render/scripts/render-examples.sh)
+
+## 🚀 使用方式
+
+### 基本命令
+在 `apps/render` 目录下执行：
+
+```bash
+# 渲染单个文件
+npm run render
+
+# 渲染所有文件
+npm run render:all
+
+# 使用浅色主题渲染
+npm run render:all:light
+
+# 运行测试
+npm run test
+```
+
+### 配置文件
+- **包配置**: [apps/render/package.json](mdc:apps/render/package.json)
+- **TypeScript**: [apps/render/tsconfig.json](mdc:apps/render/tsconfig.json)
+- **说明文档**: [apps/render/README.md](mdc:apps/render/README.md)
+
+## 🛠 开发指南
+
+### 添加新的 Markdown 文件
+1. 将 `.md` 文件放入 [apps/render/data/](mdc:apps/render/data) 目录
+2. 运行渲染命令生成 HTML
+3. 检查输出结果的格式和样式
+
+### 自定义渲染器
+编辑 [apps/render/src/renderer.ts](mdc:apps/render/src/renderer.ts) 文件：
+- 调整 Markdown 解析选项
+- 配置 Mermaid 图表样式
+- 自定义 HTML 模板
+
+### 主题配置
+渲染器支持两种主题：
+- **默认主题**: 深色背景适合开发环境
+- **浅色主题**: 明亮背景适合文档展示
+
+### Mermaid 图表
+支持的图表类型：
+- 流程图 (Flowchart)
+- 序列图 (Sequence Diagram)  
+- 类图 (Class Diagram)
+- 甘特图 (Gantt Chart)
+- Git 图 (Gitgraph)
+
+参考 [test-mermaid.ts](mdc:apps/render/src/test-mermaid.ts) 了解使用方法。
+
+## 🧪 测试和调试
+
+### 测试文件
+- **完整测试**: [test-all.js](mdc:apps/render/test-all.js)
+- **示例演示**: [demo.js](mdc:apps/render/demo.js)
+
+### 调试技巧
+1. 检查 Markdown 语法是否正确
+2. 验证 Mermaid 图表语法
+3. 确认文件路径和权限
+4. 查看控制台输出的错误信息
+
+## 🎯 最佳实践
+
+### Markdown 编写规范
+- 使用标准 Markdown 语法
+- 为代码块指定语言类型
+- Mermaid 图表放在代码块中，标记为 `mermaid`
+- 合理使用标题层级结构
+
+### 性能优化
+- 批量处理减少启动开销
+- 缓存渲染结果避免重复计算
+- 大文件分块处理
+
+### 文件组织
+- 按功能分类组织 Markdown 文件
+- 使用有意义的文件名
+- 保持目录结构清晰
+
+## 🔧 常见问题
+
+### Mermaid 渲染失败
+- 检查图表语法是否正确
+- 确认 Mermaid 版本兼容性
+- 查看浏览器控制台错误
+
+### 样式显示异常
+- 验证 CSS 文件引用
+- 检查主题配置
+- 确认 HTML 结构完整
+
+### 批量渲染中断
+- 检查文件权限
+- 验证输出目录存在
+- 查看具体错误日志

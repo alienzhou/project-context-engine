@@ -1,0 +1,139 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 架构设计规则
+
+## 🏗 整体架构
+
+Project Context Engine 采用 **Vibe Coding** 理念，基于 monorepo 架构设计。
+
+### 架构层级
+
+```
+┌─────────────────────────────────────┐
+│            应用层 (Apps)             │
+├─────────────────┬───────────────────┤
+│   Analyzer      │      Render       │
+│  (代码分析器)    │   (渲染器)         │
+├─────────────────┴───────────────────┤
+│            共享层 (Packages)         │
+│              Common                 │
+├─────────────────────────────────────┤
+│            基础设施层                 │
+│   TypeScript + Node.js + pnpm      │
+└─────────────────────────────────────┘
+```
+
+## 🔧 技术选型原则
+
+### TypeScript 优先
+- 所有新代码必须使用 TypeScript
+- 严格的类型检查，配置在 [tsconfig.base.json](mdc:tsconfig.base.json)
+- 共享类型定义放在 `packages/common` 中
+
+### 模块化设计
+- 每个功能模块独立成包
+- 通过 workspace 协议管理内部依赖
+- 清晰的模块边界和职责分离
+
+### AI 集成标准
+- 统一的 AI 服务抽象层
+- 支持多种 AI 提供商 (Amazon Bedrock, Azure)
+- AI 相关配置集中管理
+
+## 📦 包管理规范
+
+### Workspace 配置
+基于 [pnpm-workspace.yaml](mdc:pnpm-workspace.yaml) 的配置：
+- `packages/*` - 共享包
+- `apps/*` - 应用程序
+- 排除测试目录避免循环依赖
+
+### 依赖管理
+- 开发依赖统一在根 [package.json](mdc:package.json) 管理
+- 应用特定依赖在各自 package.json 中声明
+- 使用 `workspace:*` 协议引用内部包
+
+### 版本控制
+- 统一的 packageManager 版本 `pnpm@10.11.0`
+- Node.js 最低版本要求 `>=16.0.0`
+- TypeScript 版本保持一致性
+
+## 🔍 代码组织规范
+
+### 目录结构约定
+```
+src/
+├── index.ts          # 主入口点
+├── utils/            # 工具函数
+├── types/            # 类型定义
+├── services/         # 业务服务
+└── __tests__/        # 测试文件
+```
+
+### 命名约定
+- **文件**: 使用 kebab-case (`user-service.ts`)
+- **类**: 使用 PascalCase (`UserService`)
+- **函数/变量**: 使用 camelCase (`getUserInfo`)
+- **常量**: 使用 SCREAMING_SNAKE_CASE (`API_BASE_URL`)
+
+### 导入导出规范
+- 使用相对路径导入同包文件
+- 使用 workspace 包名导入共享包
+- 统一从 index.ts 导出公共 API
+
+## 🎯 性能设计原则
+
+### 异步优先
+- 所有 I/O 操作使用 async/await
+- 合理使用并发处理提高效率
+- 避免阻塞主线程的同步操作
+
+### 内存管理
+- 大文件采用流式处理
+- 及时释放不再需要的资源
+- 合理设置日志保留策略 (7天)
+
+### 缓存策略
+- 解析结果可缓存复用
+- 避免重复的 AI 调用
+- 文件变更检测优化
+
+## 🛡 错误处理规范
+
+### 异常处理
+- 使用 try-catch 包装可能失败的操作
+- 提供有意义的错误信息
+- 记录详细的错误日志
+
+### 日志系统
+基于 [apps/analyzer/src/utils/log.ts](mdc:apps/analyzer/src/utils/log.ts)：
+- 结构化日志格式
+- 分级日志记录 (DEBUG/INFO/WARN/ERROR)
+- 自动日志轮转和清理
+
+## 🔒 安全考虑
+
+### 路径安全
+- 验证文件路径防止目录遍历
+- 限制可访问的文件类型
+- 使用 path.resolve 规范化路径
+
+### AI 服务安全
+- API 密钥安全管理
+- 请求频率限制
+- 敏感信息过滤
+
+## 🧪 测试策略
+
+### 测试组织
+- 单元测试覆盖核心逻辑
+- 集成测试验证模块协作
+- 使用 [test-multilang/](mdc:test-multilang) 进行多语言测试
+
+### 质量保证
+- 代码覆盖率要求
+- 自动化 CI/CD 检查
+- 代码审查流程

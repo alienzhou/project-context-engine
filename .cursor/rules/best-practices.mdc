@@ -1,0 +1,172 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 最佳实践和常见问题
+
+## 🎯 开发最佳实践
+
+### 代码质量
+- **类型安全**: 所有函数都应该有明确的类型声明
+- **错误处理**: 使用 try-catch 包装异步操作
+- **日志记录**: 重要操作都应该有日志记录
+- **代码复用**: 公共逻辑提取到 [packages/common/](mdc:packages/common)
+
+### AI 集成最佳实践
+基于 [apps/analyzer/src/utils/ai.ts](mdc:apps/analyzer/src/utils/ai.ts)：
+- **API 调用优化**: 合并相似请求减少调用次数
+- **错误重试**: 实现指数退避重试机制
+- **速率限制**: 遵守 AI 服务的调用频率限制
+- **提示词优化**: 使用结构化的提示词模板
+
+### 文件操作规范
+基于 [apps/analyzer/src/utils/fs.ts](mdc:apps/analyzer/src/utils/fs.ts)：
+- **路径安全**: 使用 `path.resolve` 和 `path.join`
+- **异常处理**: 检查文件是否存在再操作
+- **权限验证**: 确认读写权限
+- **资源清理**: 及时关闭文件句柄
+
+## 🐛 常见问题解决
+
+### 构建问题
+
+#### TypeScript 编译错误
+```bash
+# 检查类型错误
+pnpm typecheck
+
+# 清理重新构建
+pnpm clean && pnpm build
+```
+
+#### 依赖冲突
+```bash
+# 清理 node_modules
+rm -rf node_modules pnpm-lock.yaml
+
+# 重新安装
+pnpm install
+```
+
+### 代码分析器问题
+
+#### AI 服务连接失败
+检查 [apps/analyzer/src/utils/ai.ts](mdc:apps/analyzer/src/utils/ai.ts) 配置：
+- 验证 API 密钥设置
+- 检查网络连接
+- 确认服务端点地址
+
+#### 分析结果不准确
+优化策略：
+- 调整提示词模板
+- 增加上下文信息
+- 验证输入代码格式
+
+#### 内存占用过高
+在 [apps/analyzer/src/index.ts](mdc:apps/analyzer/src/index.ts) 中：
+- 调整批处理大小
+- 实现流式处理
+- 定期清理临时文件
+
+### 渲染器问题
+
+#### Mermaid 图表不显示
+检查 [apps/render/src/test-mermaid.ts](mdc:apps/render/src/test-mermaid.ts)：
+- 验证图表语法
+- 确认 Mermaid 版本
+- 检查浏览器支持
+
+#### 批量渲染失败
+在 [apps/render/scripts/render-examples.sh](mdc:apps/render/scripts/render-examples.sh) 中：
+- 检查文件权限
+- 验证输入文件格式
+- 查看错误日志
+
+## 🔧 调试技巧
+
+### 日志调试
+使用项目的日志系统 [apps/analyzer/src/utils/log.ts](mdc:apps/analyzer/src/utils/log.ts)：
+```typescript
+import Logger, { LogLevel } from './utils/log';
+
+const logger = Logger('module-name', {
+  level: LogLevel.DEBUG,
+  maxDays: 7
+});
+
+logger.debug('调试信息');
+logger.info('普通信息');
+logger.warn('警告信息');
+logger.error('错误信息');
+```
+
+### 性能分析
+```typescript
+// 性能计时
+const start = performance.now();
+await someOperation();
+const end = performance.now();
+logger.info(`操作耗时: ${end - start}ms`);
+```
+
+### 内存监控
+```typescript
+// 内存使用监控
+const memUsage = process.memoryUsage();
+logger.info(`内存使用: ${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`);
+```
+
+## 🚀 性能优化建议
+
+### 代码分析器优化
+- **并行处理**: 同时分析多个文件
+- **增量分析**: 只分析变更的文件
+- **缓存机制**: 缓存 AI 分析结果
+- **批量操作**: 合并相似的 AI 请求
+
+### 渲染器优化
+- **模板缓存**: 缓存渲染模板
+- **文件监听**: 实现热重载
+- **输出压缩**: 压缩生成的 HTML
+
+### 通用优化
+- **依赖精简**: 只引入必要的依赖
+- **构建优化**: 使用 [tsup](mdc:apps/analyzer/tsup.config.ts) 优化构建
+- **资源管理**: 及时释放不再使用的资源
+
+## 📝 开发工作流
+
+### 功能开发流程
+1. **创建分支**: 从 main 分支创建功能分支
+2. **编写代码**: 遵循项目编码规范
+3. **添加测试**: 为新功能编写测试用例
+4. **运行检查**: 执行 `pnpm lint` 和 `pnpm typecheck`
+5. **测试验证**: 运行 `pnpm test` 确保功能正常
+6. **提交代码**: 编写清晰的提交信息
+
+### 发布流程
+1. **版本检查**: 更新 package.json 版本号
+2. **构建验证**: 运行 `pnpm build` 确保构建成功
+3. **文档更新**: 更新相关文档
+4. **标签创建**: 创建版本标签
+
+## 🔍 代码审查清单
+
+### 基础检查
+- [ ] TypeScript 类型声明完整
+- [ ] 错误处理机制完善
+- [ ] 日志记录适当
+- [ ] 性能考虑充分
+
+### 安全检查
+- [ ] 输入验证和过滤
+- [ ] 文件路径安全
+- [ ] API 密钥保护
+- [ ] 敏感信息脱敏
+
+### 可维护性
+- [ ] 代码结构清晰
+- [ ] 命名规范一致
+- [ ] 注释文档完整
+- [ ] 测试覆盖充分
