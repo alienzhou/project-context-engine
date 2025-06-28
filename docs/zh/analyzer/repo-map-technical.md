@@ -246,4 +246,4 @@ function formatAsMermaid(files: RepoMapFile[]): string {
 
 ---
 
-返回 [**用户指南 (REPO-MAP.md)**](./REPO-MAP.md)。
+返回 [**用户指南 (repo-map.md)**](./repo-map.md)。

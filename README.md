@@ -1,161 +1,169 @@
 # Project Context Engine
 
-一个基于 AI 的项目上下文分析引擎，用于代码库分析、文档生成和 Markdown 渲染。
+An AI-powered project context analysis engine for codebase analysis, documentation generation, and Markdown rendering.
 
-> 🎨 **特别说明**: 本项目完全采用 **Vibe Coding** 开发方式构建
+> 🎨 **Special Note**: This project is entirely built using the **Vibe Coding** approach
 
-## 🚀 功能特性
+## 🌐 Languages / 语言支持
 
-### 📊 代码分析器 (Analyzer)
+- **English** (Default): This README
+- **中文**: [README.zh.md](README.zh.md)
 
-- **智能代码分析**: 使用 AI 技术分析代码库结构和功能
-- **自动文档生成**: 生成项目总结、API 文档和代码说明
-- **Repository Map**: 创建代码库的符号映射图，便于理解项目结构
-- **语言过滤**: 支持指定特定语言进行分析，提高分析效率和精度
-- **多语言支持**: 支持 TypeScript、JavaScript、Python、Java、Go、C++ 等多种编程语言
-- **Tree-sitter 解析**: 使用 Tree-sitter 进行精确的语法分析
+## 🚀 Features
 
-### 🎨 Markdown 渲染器 (Render)
+### 📊 Code Analyzer
 
-- **高质量渲染**: 将 Markdown 文件渲染为美观的 HTML
-- **Mermaid 图表支持**: 支持流程图、序列图、类图等多种图表类型
-- **主题切换**: 支持明暗两种主题模式
-- **批量处理**: 支持批量渲染多个文件
-- **代码高亮**: 内置语法高亮功能
+- **Intelligent Code Analysis**: Analyze codebase structure and functionality using AI technology
+- **Automatic Documentation Generation**: Generate project summaries, API documentation, and code explanations
+- **Repository Map**: Create symbol mapping diagrams of codebases for easy project structure understanding
+- **Language Filtering**: Support specifying particular languages for analysis, improving analysis efficiency and precision
+- **Multi-language Support**: Support TypeScript, JavaScript, Python, Java, Go, C++, and other programming languages
+- **Tree-sitter Parsing**: Use Tree-sitter for precise syntax analysis
 
-## 🛠 技术栈
+### 🎨 Markdown Renderer
 
-- **TypeScript**: 类型安全的 JavaScript 开发
-- **pnpm**: 高效的包管理和 monorepo 支持
-- **Tree-sitter**: 精确的代码语法分析
-- **AI SDK**: 集成多种 AI 服务 (Amazon Bedrock, Azure)
-- **Mermaid**: 图表和流程图渲染
-- **Winston**: 日志管理
+- **High-quality Rendering**: Render Markdown files into beautiful HTML
+- **Mermaid Chart Support**: Support flowcharts, sequence diagrams, class diagrams, and other chart types
+- **Theme Switching**: Support both dark and light theme modes
+- **Batch Processing**: Support batch rendering of multiple files
+- **Code Highlighting**: Built-in syntax highlighting functionality
 
-## 📦 项目结构
+## 🛠 Tech Stack
+
+- **TypeScript**: Type-safe JavaScript development
+- **pnpm**: Efficient package management and monorepo support
+- **Tree-sitter**: Precise code syntax analysis
+- **AI SDK**: Integration with multiple AI services (Amazon Bedrock, Azure)
+- **Mermaid**: Chart and flowchart rendering
+- **Winston**: Logging management
+
+## 📦 Project Structure
 
 ```
 project-context-engine/
 ├── apps/
-│   ├── analyzer/           # 🔍 代码分析器
+│   ├── analyzer/           # 🔍 Code Analyzer
 │   │   ├── src/
 │   │   │   ├── code-analyzer/
-│   │   │   │   ├── agent/     # AI 代理功能
-│   │   │   │   ├── parser/    # 代码解析器
-│   │   │   │   ├── reading/   # 代码阅读分析
-│   │   │   │   ├── repomap/   # 仓库映射生成
-│   │   │   │   ├── structure/ # 项目结构分析
-│   │   │   │   └── summary/   # 代码总结功能
-│   │   │   └── utils/         # 工具函数
-│   │   └── processed/         # 分析结果输出
-│   └── render/             # 🎨 Markdown 渲染器
+│   │   │   │   ├── agent/     # AI agent functionality
+│   │   │   │   ├── parser/    # Code parser
+│   │   │   │   ├── reading/   # Code reading analysis
+│   │   │   │   ├── repomap/   # Repository mapping generation
+│   │   │   │   ├── structure/ # Project structure analysis
+│   │   │   │   └── summary/   # Code summarization functionality
+│   │   │   └── utils/         # Utility functions
+│   │   └── processed/         # Analysis result output
+│   └── render/             # 🎨 Markdown Renderer
 │       ├── src/
-│       ├── data/              # Markdown 源文件
-│       └── scripts/           # 渲染脚本
+│       ├── data/              # Markdown source files
+│       └── scripts/           # Rendering scripts
 ├── packages/
-│   └── common/             # 📚 共享代码库
-├── test-multilang/         # 🧪 多语言测试用例
+│   └── common/             # 📚 Shared codebase
+├── test-multilang/         # 🧪 Multi-language test cases
+├── docs/                   # 📖 Documentation
+│   ├── en/                 # English documentation
+│   └── zh/                 # Chinese documentation
 └── ...
 ```
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 安装依赖
+### Install Dependencies
 
 ```bash
 pnpm install
 ```
 
-### 构建项目
+### Build Project
 
 ```bash
-# 构建整个项目
+# Build entire project
 pnpm build
 
-# 单独构建特定包
-pnpm build:common    # 构建共享包
-pnpm build:analyzer  # 构建代码分析器
+# Build specific packages separately
+pnpm build:common    # Build shared package
+pnpm build:analyzer  # Build code analyzer
 ```
 
-### 运行代码分析器
+### Run Code Analyzer
 
 ```bash
-# 启动代码分析器
+# Start code analyzer
 pnpm start
 
-# 开发模式
+# Development mode
 pnpm dev
 ```
 
-### 使用 Markdown 渲染器
+### Use Markdown Renderer
 
 ```bash
-# 进入渲染器目录
+# Enter renderer directory
 cd apps/render
 
-# 渲染单个文件
+# Render single file
 npm run render
 
-# 渲染所有文件
+# Render all files
 npm run render:all
 
-# 使用浅色主题渲染
+# Render with light theme
 npm run render:all:light
 ```
 
-## 📋 可用脚本
+## 📋 Available Scripts
 
-### 全局脚本
+### Global Scripts
 
 ```bash
-pnpm build          # 构建所有包
-pnpm dev            # 开发模式
-pnpm test           # 运行测试
-pnpm typecheck      # TypeScript 类型检查
-pnpm lint           # 代码检查
-pnpm format         # 代码格式化
-pnpm clean          # 清理构建文件
+pnpm build          # Build all packages
+pnpm dev            # Development mode
+pnpm test           # Run tests
+pnpm typecheck      # TypeScript type checking
+pnpm lint           # Code linting
+pnpm format         # Code formatting
+pnpm clean          # Clean build files
 ```
 
-### 代码分析器专用
+### Code Analyzer Specific
 
 ```bash
-pnpm start                              # 启动分析器
-cd apps/analyzer && pnpm test-repomap  # 测试仓库映射功能
+pnpm start                              # Start analyzer
+cd apps/analyzer && pnpm test-repomap  # Test repository mapping functionality
 
-# Repository Map 语言过滤功能
+# Repository Map language filtering functionality
 cd apps/analyzer
-node dist/code-analyzer/repomap/cli.js <目录> --language python    # 只分析 Python 文件
-node dist/code-analyzer/repomap/cli.js <目录> -l typescript        # 只分析 TypeScript 文件
-node test-repomap.js --language java                               # 测试特定语言
+node dist/code-analyzer/repomap/cli.js <directory> --language python    # Analyze only Python files
+node dist/code-analyzer/repomap/cli.js <directory> -l typescript        # Analyze only TypeScript files
+node test-repomap.js --language java                                    # Test specific language
 ```
 
-## 🔧 开发指南
+## 🔧 Development Guide
 
-### 添加依赖
+### Add Dependencies
 
-使用 pnpm workspace 为特定包添加依赖：
+Use pnpm workspace to add dependencies for specific packages:
 
 ```bash
-# 为分析器添加依赖
+# Add dependency for analyzer
 pnpm --filter @project-context-engine/analyzer add <dependency>
 
-# 为渲染器添加依赖
+# Add dependency for renderer
 pnpm --filter @project/render add <dependency>
 
-# 为共享包添加依赖
+# Add dependency for shared package
 pnpm --filter @project-context-engine/common add <dependency>
 ```
 
-### 运行特定包的脚本
+### Run Package-specific Scripts
 
 ```bash
 pnpm --filter <package-name> <script>
 ```
 
-### 依赖关系
+### Dependencies
 
-项目使用 workspace 协议管理内部依赖：
+The project uses workspace protocol to manage internal dependencies:
 
 ```json
 {
@@ -165,34 +173,52 @@ pnpm --filter <package-name> <script>
 }
 ```
 
-## 🌟 主要特性
+## 🌟 Key Features
 
-### 智能代码分析
+### Intelligent Code Analysis
 
-- 自动识别项目架构和设计模式
-- 生成详细的代码文档和说明
-- 创建项目结构树和依赖关系图
+- Automatically identify project architecture and design patterns
+- Generate detailed code documentation and explanations
+- Create project structure trees and dependency relationship diagrams
 
-### AI 驱动的文档生成
+### AI-driven Documentation Generation
 
-- 利用大语言模型理解代码逻辑
-- 自动生成 README、API 文档
-- 提供代码改进建议
+- Leverage large language models to understand code logic
+- Automatically generate README, API documentation
+- Provide code improvement suggestions
 
-### 多格式输出
+### Multi-format Output
 
-- Markdown 格式的分析报告
-- HTML 格式的可视化文档
-- JSON 格式的结构化数据
+- Markdown format analysis reports
+- HTML format visualization documentation
+- JSON format structured data
 
-## 📄 许可证
+## 📚 Documentation
+
+The project supports bilingual documentation in Chinese and English:
+
+- **English Documentation**: [docs/en/README.md](docs/en/README.md)
+- **中文文档**: [docs/zh/README.md](docs/zh/README.md)
+
+### Detailed Documentation
+
+- **Code Analyzer Documentation**: [docs/en/analyzer/](docs/en/analyzer/)
+  - [Repo Map User Guide](docs/en/analyzer/repo-map.md)
+  - [Technical Manual](docs/en/analyzer/repo-map-technical.md)
+  - [Test Guide](docs/en/analyzer/repo-map-test-guide.md)
+
+- **Markdown Renderer Documentation**: [docs/en/render/README.md](docs/en/render/README.md)
+
+- **Multi-language Test Cases**: [docs/en/test-multilang/README.md](docs/en/test-multilang/README.md)
+
+## 📄 License
 
 ISC License
 
-## 🤝 贡献
+## 🤝 Contributing
 
-欢迎提交 Issue 和 Pull Request 来帮助改进项目。
+Welcome to submit Issues and Pull Requests to help improve the project.
 
 ---
 
-**Project Context Engine** - 让代码分析和文档生成变得简单高效 🚀
+**Project Context Engine** - Making code analysis and documentation generation simple and efficient 🚀
