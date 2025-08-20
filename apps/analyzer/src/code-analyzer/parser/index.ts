@@ -1,6 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
+
 import Parser from 'web-tree-sitter';
+
 import Logger from '../../utils/log';
 import { type CodeNodeInfo } from '../type';
 
@@ -201,6 +203,296 @@ async function tryLoadParser(lang: string): Promise<Parser | null> {
   }
 }
 
+
+/**
+ * Extract CSS rules and selectors from CSS files
+ */
+function extractCssRules(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepath[] {
+  const rules: CodeNodeInfoWithoutFilepath[] = [];
+
+  function processNode(node: Parser.SyntaxNode, depth: number = 0): void {
+    // Process all nodes - CSS tree structure can vary
+    if (node.type === 'rule_set') {
+      extractStyleRule(node, depth);
+    } else if (node.type === 'media_statement' || node.type === 'media_rule') {
+      extractMediaRule(node, depth);
+    } else if (node.type === 'keyframes_statement' || node.type === 'keyframes_rule') {
+      extractKeyframesRule(node, depth);
+    } else if (node.type === 'import_statement' || node.type === 'import_rule') {
+      extractImportRule(node, depth);
+    } else if (node.type === 'declaration' && node.text.trim().startsWith('--')) {
+      extractCssVariable(node, depth);
+    } else if (node.type === 'comment') {
+      // Skip comments
+    } else if (node.type === 'stylesheet') {
+      // Process all children of stylesheet
+      for (let i = 0; i < node.childCount; i++) {
+        const child = node.child(i);
+        if (child) {
+          processNode(child, depth);
+        }
+      }
+    } else {
+      // Any other node: process all children
+      for (let i = 0; i < node.childCount; i++) {
+        const child = node.child(i);
+        if (child) {
+          processNode(child, depth + 1);
+        }
+      }
+    }
+  }
+
+  function extractStyleRule(ruleNode: Parser.SyntaxNode, _depth: number): void {
+    // For CSS tree-sitter, the structure might be different
+    // Try different ways to find selectors and block
+    let selectorsNode = ruleNode.childForFieldName('selectors');
+    let blockNode = ruleNode.childForFieldName('block');
+    
+    // If field names don't work, try finding by type
+    if (!selectorsNode || !blockNode) {
+      for (let i = 0; i < ruleNode.childCount; i++) {
+        const child = ruleNode.child(i);
+        if (child) {
+          if (!selectorsNode && (child.type === 'selectors' || child.type.includes('selector'))) {
+            selectorsNode = child;
+          }
+          if (!blockNode && (child.type === 'block' || child.type === 'declaration_block')) {
+            blockNode = child;
+          }
+        }
+      }
+    }
+
+    if (selectorsNode && blockNode) {
+      const selectors = extractSelectors(selectorsNode);
+      const properties = extractProperties(blockNode);
+
+      if (selectors.length > 0) {
+        const selectorsText = selectors.join(', ');
+        const signature = `${selectorsText} { ${properties.length} properties }`;
+        
+        rules.push({
+          fullText: ruleNode.text,
+          signature,
+          startLine: ruleNode.startPosition.row + 1,
+          endLine: ruleNode.endPosition.row + 1
+        });
+      }
+    } else {
+      // Fallback: just use the node text up to the first brace
+      const nodeText = ruleNode.text;
+      const braceIndex = nodeText.indexOf('{');
+      if (braceIndex > 0) {
+        const selector = nodeText.substring(0, braceIndex).trim();
+        const signature = `${selector} { CSS rule }`;
+        
+        rules.push({
+          fullText: ruleNode.text,
+          signature,
+          startLine: ruleNode.startPosition.row + 1,
+          endLine: ruleNode.endPosition.row + 1
+        });
+      }
+    }
+  }
+
+  function extractMediaRule(mediaNode: Parser.SyntaxNode, depth: number): void {
+    // Extract media query from the node text directly
+    const nodeText = mediaNode.text;
+    const atIndex = nodeText.indexOf('@media');
+    const braceIndex = nodeText.indexOf('{');
+    
+    let mediaQuery = '@media';
+    if (atIndex >= 0 && braceIndex > atIndex) {
+      mediaQuery = nodeText.substring(atIndex, braceIndex).trim();
+    }
+
+    const blockNode = mediaNode.childForFieldName('block');
+    if (blockNode) {
+      let ruleCount = 0;
+      for (let i = 0; i < blockNode.childCount; i++) {
+        const child = blockNode.child(i);
+        if (child && child.type === 'rule_set') {
+          ruleCount++;
+        }
+      }
+
+      rules.push({
+        fullText: mediaNode.text,
+        signature: `${mediaQuery} { ${ruleCount} rules }`,
+        startLine: mediaNode.startPosition.row + 1,
+        endLine: mediaNode.endPosition.row + 1
+      });
+
+      // Process nested rules
+      for (let i = 0; i < blockNode.childCount; i++) {
+        const child = blockNode.child(i);
+        if (child) {
+          processNode(child, depth + 1);
+        }
+      }
+    } else {
+      // Fallback
+      rules.push({
+        fullText: mediaNode.text,
+        signature: `${mediaQuery} { media query }`,
+        startLine: mediaNode.startPosition.row + 1,
+        endLine: mediaNode.endPosition.row + 1
+      });
+    }
+  }
+
+  function extractKeyframesRule(keyframesNode: Parser.SyntaxNode, _depth: number): void {
+    // Extract keyframes name from the node text directly
+    const nodeText = keyframesNode.text;
+    const keyframesIndex = nodeText.indexOf('@keyframes');
+    const braceIndex = nodeText.indexOf('{');
+    
+    let keyframesName = '@keyframes';
+    if (keyframesIndex >= 0 && braceIndex > keyframesIndex) {
+      keyframesName = nodeText.substring(keyframesIndex, braceIndex).trim();
+    }
+
+    const blockNode = keyframesNode.childForFieldName('block');
+    if (blockNode) {
+      let frameCount = 0;
+      for (let i = 0; i < blockNode.childCount; i++) {
+        const child = blockNode.child(i);
+        if (child && (child.type === 'keyframe_block' || child.type.includes('keyframe'))) {
+          frameCount++;
+        }
+      }
+
+      rules.push({
+        fullText: keyframesNode.text,
+        signature: `${keyframesName} { ${frameCount} frames }`,
+        startLine: keyframesNode.startPosition.row + 1,
+        endLine: keyframesNode.endPosition.row + 1
+      });
+    } else {
+      // Fallback
+      rules.push({
+        fullText: keyframesNode.text,
+        signature: `${keyframesName} { keyframes }`,
+        startLine: keyframesNode.startPosition.row + 1,
+        endLine: keyframesNode.endPosition.row + 1
+      });
+    }
+  }
+
+  function extractImportRule(importNode: Parser.SyntaxNode, _depth: number): void {
+    let importPath = '';
+    
+    // Find the import path
+    for (let i = 0; i < importNode.childCount; i++) {
+      const child = importNode.child(i);
+      if (child && (child.type === 'string_value' || child.type === 'call_expression')) {
+        importPath = child.text;
+        break;
+      }
+    }
+
+    rules.push({
+      fullText: importNode.text,
+      signature: `@import ${importPath}`,
+      startLine: importNode.startPosition.row + 1,
+      endLine: importNode.endPosition.row + 1
+    });
+  }
+
+  function extractCssVariable(declNode: Parser.SyntaxNode, _depth: number): void {
+    const propertyNode = declNode.childForFieldName('property');
+    const valueNode = declNode.childForFieldName('value');
+    
+    if (propertyNode && valueNode && propertyNode.text.startsWith('--')) {
+      const variableName = propertyNode.text;
+      const variableValue = valueNode.text;
+      
+      rules.push({
+        fullText: declNode.text,
+        signature: `${variableName}: ${variableValue}`,
+        startLine: declNode.startPosition.row + 1,
+        endLine: declNode.endPosition.row + 1
+      });
+    }
+  }
+
+  function extractSelectors(selectorsNode: Parser.SyntaxNode): string[] {
+    const selectors: string[] = [];
+    
+    function traverseSelectors(node: Parser.SyntaxNode): void {
+      // CSS tree-sitter might use different node types
+      if (node.type === 'class_selector' || 
+          node.type === 'id_selector' || 
+          node.type === 'tag_name' ||
+          node.type === 'type_selector' ||
+          node.type === 'attribute_selector' ||
+          node.type === 'pseudo_class_selector' ||
+          node.type === 'pseudo_element_selector' ||
+          node.type === 'universal_selector' ||
+          node.type === 'selector') {
+        selectors.push(node.text);
+      } else {
+        for (let i = 0; i < node.childCount; i++) {
+          const child = node.child(i);
+          if (child) {
+            traverseSelectors(child);
+          }
+        }
+      }
+    }
+
+    traverseSelectors(selectorsNode);
+    
+    // Fallback: if no specific selectors found, use the full text
+    if (selectors.length === 0) {
+      selectors.push(selectorsNode.text.trim());
+    }
+    
+    return selectors;
+  }
+
+  function extractProperties(blockNode: Parser.SyntaxNode): string[] {
+    const properties: string[] = [];
+    
+    function extractFromNode(node: Parser.SyntaxNode): void {
+      if (node.type === 'declaration') {
+        // Try field name first
+        const propertyNode = node.childForFieldName('property');
+        if (propertyNode) {
+          properties.push(propertyNode.text);
+        } else {
+          // Try finding property by traversing children
+          for (let j = 0; j < node.childCount; j++) {
+            const child = node.child(j);
+            if (child && (child.type === 'property_name' || child.type.includes('property'))) {
+              properties.push(child.text);
+              break;
+            }
+          }
+        }
+      } else {
+        // Recursively search for declarations
+        for (let i = 0; i < node.childCount; i++) {
+          const child = node.child(i);
+          if (child) {
+            extractFromNode(child);
+          }
+        }
+      }
+    }
+    
+    extractFromNode(blockNode);
+    
+    return properties;
+  }
+
+  // Start processing from root
+  processNode(root);
+  return rules;
+}
+
 /**
  * Extract <script> and <template> content from Vue files
  */
@@ -394,60 +686,6 @@ function extractHtmlElements(root: Parser.SyntaxNode): CodeNodeInfoWithoutFilepa
   }
 
   // Determine whether to include this element
-  function shouldIncludeElement(element: HtmlElement, path: string[]): boolean {
-    const depth = path.length;
-    const tagName = element.tagName;
-
-    // Limit maximum depth to 10 layers, avoid too deep nesting
-    if (depth > 10) {
-      return false;
-    }
-
-    // 1. Always include top-level structure tags
-    if (['html', 'head', 'body'].includes(tagName)) {
-      return true;
-    }
-
-    // 2. Include important semantic tags (regardless of level)
-    const semanticTags = ['header', 'nav', 'main', 'section', 'article', 'aside', 'footer'];
-    if (semanticTags.includes(tagName)) {
-      return true;
-    }
-
-    // 3. Include elements with id (these are usually important)
-    if (element.hasId) {
-      return true;
-    }
-
-    // 4. For div, relax restrictions
-    if (tagName === 'div') {
-      // div with class or id in depth 8 layers
-      if (element.hasClass || element.hasId) {
-        return depth <= 8;
-      }
-      // Normal div in depth 5 layers
-      return depth <= 5;
-    }
-
-    // 5. Form related elements, relax restrictions
-    if (['form', 'table', 'ul', 'ol', 'li'].includes(tagName)) {
-      return depth <= 8;
-    }
-
-    // 6. Other elements with class in depth 7 layers
-    if (element.hasClass) {
-      return depth <= 7;
-    }
-
-    // 7. Common important tags
-    const commonTags = ['a', 'button', 'input', 'select', 'textarea', 'img', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
-    if (commonTags.includes(tagName)) {
-      return depth <= 6;
-    }
-
-    // 8. Default not included
-    return false;
-  }
 
   // Only process top-level document elements, avoid repetition
   function processTopLevelElements(node: Parser.SyntaxNode): void {
@@ -488,48 +726,7 @@ function hasAttribute(startTag: Parser.SyntaxNode, attributeName: string): boole
   return false;
 }
 
-/**
- * Check if tag has important attributes (id or class)
- */
-function hasImportantAttributes(startTag: Parser.SyntaxNode): boolean {
-  return hasAttribute(startTag, 'id') || hasAttribute(startTag, 'class');
-}
 
-/**
- * Extract tag attributes
- */
-function extractAttributes(startTag: Parser.SyntaxNode): { id?: string; class?: string;[key: string]: string | undefined } {
-  const attributes: { id?: string; class?: string;[key: string]: string | undefined } = {};
-
-  for (let i = 0; i < startTag.childCount; i++) {
-    const child = startTag.child(i);
-    if (child && child.type === 'attribute') {
-      // HTML attribute structure: attribute_name="attribute_value" or attribute_name='attribute_value'
-      const nameNode = child.child(0); // Attribute name
-      const valueNode = child.child(2); // Attribute value (skip = symbol)
-
-      if (nameNode && nameNode.type === 'attribute_name' && valueNode && valueNode.type === 'quoted_attribute_value') {
-        const attrName = nameNode.text.toLowerCase();
-
-        // Find actual attribute value in quoted_attribute_value
-        const actualValueNode = valueNode.child(1); // Middle child node is attribute_value
-        let attrValue = actualValueNode ? actualValueNode.text : valueNode.text;
-
-        // If no child node is found, remove quotes
-        if (!actualValueNode) {
-          if ((attrValue.startsWith('"') && attrValue.endsWith('"')) ||
-            (attrValue.startsWith("'") && attrValue.endsWith("'"))) {
-            attrValue = attrValue.slice(1, -1);
-          }
-        }
-
-        attributes[attrName] = attrValue;
-      }
-    }
-  }
-
-  return attributes;
-}
 
 /**
  * Extract methods from Vue component object
@@ -1031,9 +1228,9 @@ export async function parseCodeFile(filePath: string): Promise<CodeNodeInfo[]> {
       return [];
     }
 
-    let fileContent = fs.readFileSync(filePath, 'utf-8');
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
     const ext = path.extname(filePath);
-    let actualExt = ext;
+    const actualExt = ext;
 
     // Special handling for Vue files
     if (ext.toLowerCase() === '.vue') {
@@ -1103,6 +1300,28 @@ export async function parseCodeFile(filePath: string): Promise<CodeNodeInfo[]> {
 
       return elements.map(e => ({
         ...e,
+        filePath
+      }));
+    }
+
+    // Special handling for CSS files
+    if (ext.toLowerCase() === '.css' || ext.toLowerCase() === '.scss' || ext.toLowerCase() === '.sass') {
+      const parser = await getLanguageParser(actualExt);
+      if (!parser) {
+        logger.warn(`No CSS parser available for file: ${filePath}`);
+        return [];
+      }
+
+      // Parse CSS content
+      const tree = parser.parse(fileContent);
+
+      // Extract CSS rules and selectors
+      const cssRules = extractCssRules(tree.rootNode);
+
+      logger.info(`Parsed CSS file ${filePath}, found ${cssRules.length} CSS rules`);
+
+      return cssRules.map(rule => ({
+        ...rule,
         filePath
       }));
     }

@@ -11,6 +11,8 @@ import { listProject } from './code-analyzer/structure';
 import { generateAgentPromptsForWiki } from './code-analyzer/agent';
 import { exsit } from './utils/fs';
 import { generateRepoMap } from './code-analyzer/repomap';
+// Import the new call chain analyzer
+import { CallChainAnalyzer, runCallChainAnalysis } from './call-chain-analyzer';
 
 const logger = Logger('main', {
   level: LogLevel.DEBUG,

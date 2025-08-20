@@ -1,7 +1,9 @@
-import { generateRepoMap } from './index';
-import * as path from 'node:path';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
+
 import Logger from '../../utils/log';
+
+import { generateRepoMap } from './index';
 
 const logger = Logger('repo-map-cli');
 
@@ -11,8 +13,9 @@ export async function generateRepoMapCli(options: {
   maxTokens?: number;
   format?: 'text' | 'json';
   language?: string;
+  minify?: boolean;
 }) {
-  const { input, output, maxTokens = 1024, format = 'text', language } = options;
+  const { input, output, maxTokens = 1024, format = 'text', language  = 'javascript', minify = false } = options;
 
   try {
     logger.info(`Starting to generate repo map...`);
@@ -21,8 +24,12 @@ export async function generateRepoMapCli(options: {
     if (language) {
       logger.info(`Specified language: ${language}`);
     }
+    if (minify) {
+      logger.info(`Minify mode enabled`);
+      logger.info(`Minify mode: ${minify}`);
+    }
 
-    const result = await generateRepoMap(input, { maxTokens, language });
+    const result = await generateRepoMap(input, { maxTokens, language, minify });
 
     if (format === 'json') {
       const jsonOutput = JSON.stringify(result, null, 2);
@@ -69,6 +76,7 @@ function parseArgs(args: string[]): {
   maxTokens?: number;
   format?: 'text' | 'json';
   language?: string;
+  minify?: boolean;
   help?: boolean;
 } {
   const result: any = {};
@@ -86,6 +94,8 @@ function parseArgs(args: string[]): {
       result.maxTokens = parseInt(args[++i]);
     } else if (arg === '--format' || arg === '-f') {
       result.format = args[++i];
+    } else if (arg === '--minify' || arg === '-m') {
+      result.minify = true;
     } else if (!result.input && !arg.startsWith('-')) {
       result.input = arg;
     }
@@ -104,6 +114,7 @@ Options:
   -o, --output <file>       Output file path (optional)
   -t, --max-tokens <num>    Maximum number of tokens (default: 1024)
   -f, --format <format>     Output format: text | json (default: text)
+  -m, --minify             Reduce detail level and ignore some information
   -h, --help               Show help information
 
 Supported languages:
@@ -113,6 +124,7 @@ Examples:
   node cli.js ./src                           # Analyze all supported languages
   node cli.js ./src --language python         # Only analyze Python files
   node cli.js ./src -l typescript -o map.md   # Only analyze TypeScript and save to file
+  node cli.js ./src --minify                  # Generate minified output with less detail
 `);
 }
 
@@ -153,8 +165,9 @@ if (require.main === module) {
   const maxTokens = options.maxTokens || 1024;
   const format = (options.format as 'text' | 'json') || 'text';
   const language = options.language;
+  const minify = options.minify || false;
 
-  generateRepoMapCli({ input, output, maxTokens, format, language })
+  generateRepoMapCli({ input, output, maxTokens, format, language, minify})
     .then(() => {
       console.log('✅ Done');
     })

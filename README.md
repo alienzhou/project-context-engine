@@ -118,6 +118,7 @@ npm run render:all:light
 ```bash
 pnpm build          # Build all packages
 pnpm dev            # Development mode
+pnpm start          # Start analyzer application
 pnpm test           # Run tests
 pnpm typecheck      # TypeScript type checking
 pnpm lint           # Code linting

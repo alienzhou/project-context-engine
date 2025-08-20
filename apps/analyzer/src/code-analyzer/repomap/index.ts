@@ -1,14 +1,15 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { parseCodeFile } from '../parser';
+
 import Logger from '../../utils/log';
 import { shouldProcessFile } from '../../utils/fs';
+import { parseCodeFile } from '../parser';
 
 const logger = Logger('repo-map');
 
 export interface RepoMapSymbol {
   name: string;
-  type: 'class' | 'function' | 'interface' | 'method' | 'variable' | 'type' | 'constructor' | 'property' | 'enum' | 'constant' | 'static_method' | 'async_function' | 'getter' | 'setter' | 'html_element' | 'separator';
+  type: 'class' | 'function' | 'interface' | 'method' | 'variable' | 'type' | 'constructor' | 'property' | 'enum' | 'constant' | 'static_method' | 'async_function' | 'getter' | 'setter' | 'html_element' | 'separator' | 'css_rule' | 'css_selector' | 'css_variable';
   signature: string;
   line: number;
   endLine?: number; // End line number
@@ -32,6 +33,7 @@ export interface RepoMapOptions {
   includeVariables?: boolean;
   minImportance?: number;
   language?: string;
+  minify?: boolean;
   rootPath: string;
 }
 
@@ -100,6 +102,9 @@ function calculateImportance(
     'variable': 4,
     'html_element': 8,
     'separator': 100, // Give high score to ensure not filtered out
+    'css_rule': 10,
+    'css_selector': 8,
+    'css_variable': 6,
   };
 
   score += typeScores[symbol.type] || 4;
@@ -219,6 +224,9 @@ function getSymbolIcon(type: RepoMapSymbol['type']): string {
     'variable': '📦',
     'html_element': '📦',
     'separator': '📝',
+    'css_rule': '🎨',
+    'css_selector': '🎯',
+    'css_variable': '🎨📦',
   };
   return icons[type] || '❓';
 }
@@ -226,7 +234,7 @@ function getSymbolIcon(type: RepoMapSymbol['type']): string {
 /**
  * Generate clean symbol signature (show only declaration, not method body)
  */
-function generateCleanSignature(symbol: RepoMapSymbol): string {
+function generateCleanSignature(symbol: RepoMapSymbol, minify: boolean = false): string {
   const signature = symbol.signature;
   const icon = getSymbolIcon(symbol.type);
   let cleanSig = '';
@@ -238,6 +246,11 @@ function generateCleanSignature(symbol: RepoMapSymbol): string {
 
   // For HTML elements: Use signature directly
   else if (symbol.type === 'html_element') {
+    cleanSig = signature.trim();
+  }
+
+  // For CSS elements: Use signature directly
+  else if (symbol.type === 'css_rule' || symbol.type === 'css_selector' || symbol.type === 'css_variable') {
     cleanSig = signature.trim();
   }
 
@@ -285,7 +298,7 @@ function generateCleanSignature(symbol: RepoMapSymbol): string {
       // If first line contains method declaration, use it
       if (firstLine.includes('(') && firstLine.includes(')')) {
         // Remove possible modifier prefixes, keep core signature
-        let cleanLine = firstLine.replace(/^\s*(public|private|protected|static|final|override|suspend)\s+/g, '');
+        const cleanLine = firstLine.replace(/^\s*(public|private|protected|static|final|override|suspend)\s+/g, '');
         if (cleanLine.includes('{')) {
           cleanSig = cleanLine.split('{')[0].trim() + ' { }';
         } else {
@@ -307,9 +320,9 @@ function generateCleanSignature(symbol: RepoMapSymbol): string {
     cleanSig = signature.split('\n')[0].trim() + (signature.split('\n').length > 1 ? ' { }' : '');
   }
 
-  // Add modifier marker
+  // Add modifier marker (skip in minify mode)
   let modifierStr = '';
-  if (symbol.modifiers && symbol.modifiers.length > 0) {
+  if (!minify && symbol.modifiers && symbol.modifiers.length > 0) {
     const importantModifiers = symbol.modifiers.filter(m =>
       ['export', 'static', 'async', 'abstract', 'readonly'].includes(m)
     );
@@ -318,9 +331,9 @@ function generateCleanSignature(symbol: RepoMapSymbol): string {
     }
   }
 
-  // Add line range information
+  // Add line range information (skip in minify mode)
   let lineRangeStr = '';
-  if (symbol.line > 0) {
+  if (!minify && symbol.line > 0) {
     if (symbol.endLine && symbol.endLine !== symbol.line) {
       lineRangeStr = ` [L${symbol.line}-${symbol.endLine}]`;
     } else {
@@ -328,7 +341,10 @@ function generateCleanSignature(symbol: RepoMapSymbol): string {
     }
   }
 
-  return `${icon} ${cleanSig}${modifierStr}${lineRangeStr}`;
+  // In minify mode, skip icon for cleaner output
+  const iconStr = minify ? '' : `${icon} `;
+  
+  return `${iconStr}${cleanSig}${modifierStr}${lineRangeStr}`;
 }
 
 /**
@@ -336,6 +352,27 @@ function generateCleanSignature(symbol: RepoMapSymbol): string {
  */
 function extractSymbolName(signature: string): string {
   // Improved regular expression matching, supporting more language patterns
+
+  // CSS rule or selector
+  if (signature.includes('@media')) {
+    return 'media-query';
+  }
+  if (signature.includes('@keyframes')) {
+    const match = signature.match(/@keyframes\s+([^\s{]+)/);
+    return match ? match[1] : 'keyframes';
+  }
+  if (signature.includes('@import')) {
+    return 'import';
+  }
+  if (signature.includes('--') && signature.includes(':')) {
+    const match = signature.match(/(-{2}[^\s:]+)/);
+    return match ? match[1] : 'css-variable';
+  }
+  if ((signature.includes('{') && signature.includes('properties'))) {
+    // Extract CSS selector
+    const match = signature.match(/([^\s{]+)(?:\s*,\s*[^\s{]+)*\s*\{/);
+    return match ? match[1] : 'css-rule';
+  }
 
   // HTML element: Extract tag name
   if (signature.includes('├─') || signature.includes('html')) {
@@ -370,14 +407,6 @@ function extractSymbolName(signature: string): string {
   return 'unknown';
 }
 
-/**
- * Check if symbol is a constructor
- */
-function isConstructor(symbol: RepoMapSymbol): boolean {
-  const signature = symbol.signature.toLowerCase();
-  return signature.includes('constructor') ||
-    (symbol.type === 'function' && symbol.name === extractSymbolName(symbol.signature));
-}
 
 /**
  * Deduplicate symbols (C++ etc. may have duplicate function declarations and definitions)
@@ -439,7 +468,7 @@ function calculateFilePriority(file: RepoMapFile): number {
 /**
  * Generate formatted repo map string
  */
-function formatRepoMap(files: RepoMapFile[], maxTokens: number): string {
+function formatRepoMap(files: RepoMapFile[], maxTokens: number, minify: boolean = false): string {
   let result = '';
   let currentTokens = 0;
 
@@ -470,6 +499,7 @@ function formatRepoMap(files: RepoMapFile[], maxTokens: number): string {
     currentTokens += fileHeaderTokens;
 
     // Filter and deduplicate symbols - lower filter threshold, HTML elements and separators special handling
+    // In minify mode, use higher thresholds to show only most important symbols
     let symbols = file.symbols
       .filter(s => {
         // Separators always kept
@@ -478,9 +508,10 @@ function formatRepoMap(files: RepoMapFile[], maxTokens: number): string {
         }
         // HTML elements use lower threshold
         if (s.type === 'html_element') {
-          return s.importance > 0.001;
+          return s.importance > (minify ? 0.1 : 0.001);
         }
-        return s.importance > 0.01;
+        // In minify mode, use higher threshold
+        return s.importance > (minify ? 5 : 0.01);
       })
       .sort((a, b) => b.importance - a.importance);
 
@@ -496,7 +527,9 @@ function formatRepoMap(files: RepoMapFile[], maxTokens: number): string {
       const htmlElements = symbols.filter(s => s.type === 'html_element');
 
       for (const element of htmlElements) {
-        const elementLine = `⋮...\n│${element.signature}\n`;
+        const elementLine = minify ? 
+          `${element.signature}\n` : 
+          `⋮...\n│${element.signature}\n`;
         const elementTokens = Math.ceil(elementLine.length / 4);
 
         if (currentTokens + elementTokens > maxTokens) break;
@@ -513,8 +546,10 @@ function formatRepoMap(files: RepoMapFile[], maxTokens: number): string {
 
       // First display Class/Interface and its methods
       for (const classSymbol of classes) {
-        const cleanSignature = generateCleanSignature(classSymbol);
-        const symbolLine = `⋮...\n│${cleanSignature}\n`;
+        const cleanSignature = generateCleanSignature(classSymbol, minify);
+        const symbolLine = minify ? 
+          `${cleanSignature}\n` : 
+          `⋮...\n│${cleanSignature}\n`;
         const symbolTokens = Math.ceil(symbolLine.length / 4);
 
         if (currentTokens + symbolTokens > maxTokens) break;
@@ -552,11 +587,13 @@ function formatRepoMap(files: RepoMapFile[], maxTokens: number): string {
           }
 
           return false;
-        }).slice(0, 8); // Maximum 8 methods per class
+        }).slice(0, minify ? 3 : 8); // In minify mode, show fewer methods per class
 
         for (const method of classMethods) {
-          const cleanMethodSignature = generateCleanSignature(method);
-          const methodLine = `    │  ${cleanMethodSignature}\n`;
+          const cleanMethodSignature = generateCleanSignature(method, minify);
+          const methodLine = minify ? 
+            `  ${cleanMethodSignature}\n` : 
+            `    │  ${cleanMethodSignature}\n`;
           const methodTokens = Math.ceil(methodLine.length / 4);
 
           if (currentTokens + methodTokens > maxTokens) break;
@@ -572,9 +609,12 @@ function formatRepoMap(files: RepoMapFile[], maxTokens: number): string {
       }
 
       // Display remaining independent functions
-      for (const func of functions.slice(0, 5)) { // Limit display quantity
-        const cleanSignature = generateCleanSignature(func);
-        const symbolLine = `⋮...\n│${cleanSignature}\n`;
+      const functionLimit = minify ? 2 : 5; // Show fewer functions in minify mode
+      for (const func of functions.slice(0, functionLimit)) {
+        const cleanSignature = generateCleanSignature(func, minify);
+        const symbolLine = minify ? 
+          `${cleanSignature}\n` : 
+          `⋮...\n│${cleanSignature}\n`;
         const symbolTokens = Math.ceil(symbolLine.length / 4);
 
         if (currentTokens + symbolTokens > maxTokens) break;
@@ -583,22 +623,27 @@ function formatRepoMap(files: RepoMapFile[], maxTokens: number): string {
         hasAddedContent = true;
       }
 
-      // Display separators (keep original order)
-      for (const separator of separators) {
-        const cleanSignature = generateCleanSignature(separator);
-        const symbolLine = `⋮...\n│${cleanSignature}\n`;
-        const symbolTokens = Math.ceil(symbolLine.length / 4);
+      // Display separators (keep original order) - skip in minify mode
+      if (!minify) {
+        for (const separator of separators) {
+          const cleanSignature = generateCleanSignature(separator, minify);
+          const symbolLine = `⋮...\n│${cleanSignature}\n`;
+          const symbolTokens = Math.ceil(symbolLine.length / 4);
 
-        if (currentTokens + symbolTokens > maxTokens) break;
-        result += symbolLine;
-        currentTokens += symbolTokens;
-        hasAddedContent = true;
+          if (currentTokens + symbolTokens > maxTokens) break;
+          result += symbolLine;
+          currentTokens += symbolTokens;
+          hasAddedContent = true;
+        }
       }
 
       // Display other important symbols
-      for (const other of others.slice(0, 2)) { // Limit other symbols
-        const cleanSignature = generateCleanSignature(other);
-        const symbolLine = `⋮...\n│${cleanSignature}\n`;
+      const otherLimit = minify ? 0 : 2; // Skip other symbols in minify mode
+      for (const other of others.slice(0, otherLimit)) {
+        const cleanSignature = generateCleanSignature(other, minify);
+        const symbolLine = minify ? 
+          `${cleanSignature}\n` : 
+          `⋮...\n│${cleanSignature}\n`;
         const symbolTokens = Math.ceil(symbolLine.length / 4);
 
         if (currentTokens + symbolTokens > maxTokens) break;
@@ -713,7 +758,9 @@ async function scanDirectory(dirPath: string, options: RepoMapOptions): Promise<
             // Configuration files
             '.json', '.yaml', '.yml', '.toml',
             // Web
-            '.html', '.htm', '.vue'
+            '.html', '.htm', '.vue',
+            // Stylesheets
+            '.css', '.scss', '.sass'
           ];
 
           if (supportedExtensions.includes(ext) && matchesLanguage(fullPath, options.language)) {
@@ -804,7 +851,7 @@ export async function generateRepoMap(
   });
 
   // 5. Generate formatted map
-  const map = formatRepoMap(repoMapFiles, opts.maxTokens || 1024);
+  const map = formatRepoMap(repoMapFiles, opts.maxTokens || 1024, opts.minify || false);
   const totalSymbols = repoMapFiles.reduce((sum, file) => sum + file.symbols.length, 0);
   const estimatedTokens = Math.ceil(map.length / 4);
 
@@ -826,6 +873,13 @@ function detectSymbolType(signature: string): RepoMapSymbol['type'] {
 
   // Separator detection
   if (sig.includes('--- template ---') || sig.includes('---') && sig.includes('template')) return 'separator';
+
+  // CSS rules detection
+  if (sig.includes('@media') || sig.includes('@keyframes') || sig.includes('@import')) return 'css_rule';
+  if (sig.includes('--') && sig.includes(':') && !sig.includes('function') && !sig.includes('class')) return 'css_variable';
+  if ((sig.includes('{') && sig.includes('properties')) || 
+      (sig.includes('.') || sig.includes('#') || sig.includes('[')) && 
+      sig.includes('{') && !sig.includes('function') && !sig.includes('class')) return 'css_selector';
 
   // HTML element detection (check tree symbol)
   if ((sig.includes('├─') || sig.includes('html') || sig.includes('body') || sig.includes('head')) &&
@@ -916,4 +970,4 @@ function parseSymbolDetails(signature: string): {
   }
 
   return { modifiers, returnType, parameters };
-} 
+}
